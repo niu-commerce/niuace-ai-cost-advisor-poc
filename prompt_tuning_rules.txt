@@ -1,0 +1,49 @@
+# Generated from rate audit: latest-rate-audit-v1
+# Generated at: 2026-06-28 21:42:38
+# Review these rules before using them for a full rerun.
+
+Apply these extra rules strictly:
+1. Splice/weld/sleeve/pile joint wording must classify as JOINT.
+   # audit_status=likely_wrong_trade_code affected_rows=63 current_code_count=16 inferred_code_count=4
+   # example: current=PIL-PRC-150X150-LOAD-PRELIM-50T inferred=PIL-PRC-150X150-JOINT uom=No rate=7.0000 common=5500.0000 contract=ETDSB/PIL/C311/25 item_ref=1214861
+   # text: PRESTRESSED CONCRETE LOAD BEARING PILES (ALL PROVISIONAL) > The Contractor shall provide the counter to determine the number of blows and record them in the piling records (applicable for hydraulic hammer only). > Pile Joints > Supply, splice / weld / sleeve joints to 150 mm X 150 mm prestressed reinforced concrete piles as shown on the drawings or as instructed by the Engineer.
+   # example: current=PIL-PRC-125X125-LOAD-PRELIM-40T inferred=PIL-PRC-125X125-JOINT uom=No rate=6.5000 common=4200.0000 contract=MSSB/PIL/C052/22 item_ref=599070
+   # text: BQ 2 - 108# PK 1 (Prestressed ) > PILE JOINTS > Guard House > Supply splica/weld joints to 125mm x 125mm prestressed concrete piles as shown on the drawings or as instructed by the Engineer.
+   # example: current=PIL-PRC-125X125-LOAD-PRELIM-35T inferred=PIL-PRC-125X125-JOINT uom=No rate=6.5000 common=4000.0000 contract=ETDSB/PIL/C245/22 item_ref=198627
+   # text: (ALL PROVISIONAL) > The Contractor shall provide the counter to determine the number of  blows and record them in the piling records (applicable for hydraulic hammer only). > Pile Joints > Supply, splice / weld / sleeve joints to 125 mm X 125 mm prestressed reinforced concrete piles as shown on the drawings or as instructed by the Engineer.
+
+2. Handle/transport/pitch/drive wording must classify as DRIVE even when the text also contains working load or tonnes.
+   # audit_status=likely_wrong_trade_code affected_rows=22 current_code_count=10 inferred_code_count=2
+   # example: current=PIL-PRC-150X150-SUPPLY inferred=PIL-PRC-150X150-DRIVE uom=m rate=3.3000 common=24.7000 contract=EH/PIL/C098/22 item_ref=540097
+   # text: VO 2 > PRECAST REINFORCED CONCRETE PILES  > Handle, transport, pitch and drive:- > 150mm x 150mm Piles.
+   # example: current=PIL-PRC-150X150-LOAD-PRELIM-50T inferred=PIL-PRC-150X150-DRIVE uom=m rate=3.6000 common=24.9000 contract=EBP1/PIL/C104/23 item_ref=254381
+   # text: PRESTRESSED CONCRETE PILE  > Phase 3M > Uplift from stack on site, handle, transport, pitch and drive 150mm x 150mm prestressed reinforced concrete piles to the required sets as described. (6M + 6M + 6M + 6M). Dolly is allowed to a maximum depth 0.6m only. Salvage pile is not allowed.
+   # example: current=PIL-PRC-150X150-LOAD-PRELIM-50T inferred=PIL-PRC-150X150-DRIVE uom=m rate=3.6000 common=24.9000 contract=ETDSB/PIL/C253/23 item_ref=575724
+   # text: BILL NO. 3 -  PRESTRESSED PILE - PHASE 5 & 6 > PRESTRESSED CONCRETE PILE  > Uplift from stack on site, handle, transport, pitch and drive (by hydraulic hammer)  150mm x 150mm prestressed reinforced concrete piles to the required sets as described. (6M + 6M + 6M)  Dolly is allowed to a maximum depth 0.6m only. Salvage of pile is not allowed. > Phase 5 & 6
+
+3. PDA/Pile Driving Analysis must classify as PDA even under a generic load-test heading.
+   # audit_status=likely_wrong_trade_code affected_rows=20 current_code_count=6 inferred_code_count=6
+   # example: current=PIL-PRC-150X150-LOAD-SUBSEQ-45T inferred=PIL-PRC-150X150-LOAD-SUBSEQ-45T uom=No rate=600.0000 common=4000.0000 contract=EB3/PIL/C016/25 item_ref=948294
+   # text: LOAD TEST > Subsequent load test including the provision of approved loading arrangement on;- > iv) Ditto for PDA load test.
+   # example: current=PIL-PRC-150X150-LOAD-SUBSEQ-45T inferred=PIL-PRC-150X150-LOAD-SUBSEQ-45T uom=No rate=600.0000 common=4000.0000 contract=EB3/PIL/C016/25 item_ref=948292
+   # text: LOAD TEST > Subsequent load test including the provision of approved loading arrangement on;- > ii) Ditto for PDA load test.
+   # example: current=PIL-PRC-150X150-LOAD-SUBSEQ-45T inferred=PIL-PRC-150X150-LOAD-SUBSEQ-45T uom=No rate=600.0000 common=4000.0000 contract=EB3/PIL/C016/25 item_ref=948101
+   # text: LOAD TEST > Subsequent load test including the provision of approved loading arrangement on;- > ii) Ditto for PDA load test.
+
+4. Supply and deliver wording must classify as SUPPLY even when the text also contains working load or tonnes.
+   # audit_status=likely_wrong_trade_code affected_rows=14 current_code_count=8 inferred_code_count=3
+   # example: current=PIL-PRC-125X125-DRIVE inferred=PIL-PRC-150X150-SUPPLY uom=m rate=25.1000 common=3.3000 contract=ETDSB/PIL/C237/22 item_ref=519753
+   # text: BILL NO. 2B - PILING WORKS PRESTRESSED PILE (All Provisional) > PRESTRESSED CONCRETE PILE  > Supply and deliver to site 150mm x 150mm prestressed reinforced concrete piles (6M + 6M + 6M)  complete with reinforcement bars, tonggle, holes, shoes, spacer forks, spilice joints and all necessary components as described (handling, transporting, pitching and driving measures separately) > RT2A-J
+   # example: current=PIL-PRC-150X150-LOAD inferred=PIL-PRC-150X150-SUPPLY uom=m rate=25.3000 common=3.5000 contract=EBP3/PIL/C052/23 item_ref=1089484
+   # text: PRESTRESSED CONCRETE PILE  > Suply and deliver to site only prestressed reinforced concrete piles complete with reinforcement bars, tonggle, holes, spacer forks, spilice joints and all necessary components as described (handling, transorting, pitchiong and driving measures separately) > For TNB sub station > 150mm x 150mm RC pile
+   # example: current=PIL-PRC-150X150-LOAD inferred=PIL-PRC-150X150-SUPPLY uom=m rate=25.3000 common=3.5000 contract=EBP3/PIL/C052/23 item_ref=1089478
+   # text: PRESTRESSED CONCRETE PILE  > Suply and deliver to site only prestressed reinforced concrete piles complete with reinforcement bars, tonggle, holes, spacer forks, spilice joints and all necessary components as described (handling, transorting, pitchiong and driving measures separately) > For 22' x 70' > 150mm x 150mm RC pile
+
+5. Do not classify length-based m items as PDA/LOAD unless the item itself says load test, PDA, or Pile Driving Analysis.
+   # audit_status=likely_wrong_trade_code affected_rows=5 current_code_count=2 inferred_code_count=2
+   # example: current=PIL-PRC-150X150-LOAD-PRELIM-36T inferred=PIL-PRC-150X150-LOAD-PRELIM-36T uom=m rate=200.0000 common=3.5000 contract=EF/PIL/C156/25 item_ref=793186
+   # text: PRE-BORING   > To carry out pre-boring works for 150mm x 150mm R.C. piles at loactions clashing with the geogrid wall tendons. (To refer attachment)
+   # example: current=PIL-PRC-150X150-LOAD inferred=PIL-PRC-150X150-LOAD uom=m rate=9.5000 common=3.5000 contract=EM/PIL/C372/23 item_ref=295276
+   # text: PRECAST CONCRETE PILING > Handle, transport, pitch and jack the following precast reinforced concrete piles (Grade 45) whether singly or in clusters; driving with injection machine to 2.2 times of working load. > 150mm x 150mm R.C. pile > 2) TNB Sub-Stations
+   # example: current=PIL-PRC-150X150-LOAD inferred=PIL-PRC-150X150-LOAD uom=m rate=9.5000 common=3.5000 contract=EM/PIL/C372/23 item_ref=295275
+   # text: PRECAST CONCRETE PILING > Handle, transport, pitch and jack the following precast reinforced concrete piles (Grade 45) whether singly or in clusters; driving with injection machine to 2.2 times of working load. > 150mm x 150mm R.C. pile > 1) Shophouse

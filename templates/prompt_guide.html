@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Guide — NiuAce AI Cost Advisor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal: #2a7f7f;
+      --teal-lt: #e8f5f5;
+      --ink: #1a2332;
+      --muted: #6b7a90;
+      --line: #dde3ec;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --warn: #e67e22;
+      --green: #27ae60;
+      --red: #e74c3c;
+      --blue: #2980b9;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.6; }
+
+    /* TOPBAR */
+    .topbar { display: flex; align-items: center; justify-content: space-between;
+              background: var(--ink); color: #fff; padding: 0 20px; height: 52px;
+              position: sticky; top: 0; z-index: 100; gap: 12px; }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { background: var(--teal); color: #fff; font-weight: 700;
+                  font-size: 13px; width: 32px; height: 32px; border-radius: 8px;
+                  display: flex; align-items: center; justify-content: center; }
+    .topbar h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+    .nav-links { display: flex; gap: 6px; }
+    .nav-link { padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 500;
+                color: #ccd; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+                text-decoration: none; transition: background .15s, color .15s; }
+    .nav-link:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.25); }
+    .nav-link.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+    /* PAGE LAYOUT */
+    .page { max-width: 960px; margin: 0 auto; padding: 28px 24px 60px; }
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .page-subtitle { color: var(--muted); margin-bottom: 28px; }
+
+    /* SECTION */
+    .section { margin-bottom: 36px; }
+    .section-title { font-size: 16px; font-weight: 700; color: var(--ink);
+                     margin-bottom: 14px; padding-bottom: 8px;
+                     border-bottom: 2px solid var(--teal); }
+
+    /* ANATOMY CARD */
+    .anatomy-card { background: var(--card); border: 1px solid var(--line);
+                    border-radius: 10px; padding: 24px; }
+    .anatomy-formula { font-family: monospace; font-size: 22px; font-weight: 700;
+                       letter-spacing: 1px; text-align: center; margin-bottom: 20px;
+                       line-height: 1.5; }
+    .seg-PIL  { color: #7f3fbf; }
+    .seg-TYPE { color: var(--teal); }
+    .seg-SIZE { color: var(--blue); }
+    .seg-ACT  { color: var(--warn); }
+    .seg-LOAD { color: var(--red); }
+    .seg-sep  { color: var(--muted); }
+    .seg-opt  { opacity: 0.55; }
+
+    .anatomy-legend { display: grid; grid-template-columns: 90px 1fr; gap: 6px 12px;
+                      font-size: 13px; }
+    .leg-key { font-family: monospace; font-weight: 700; padding: 2px 0; }
+    .leg-val { color: var(--muted); }
+
+    /* TABLE */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #f0f4f8; color: var(--muted); font-weight: 600;
+         text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--line); }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbfc; }
+    .code-pill { font-family: monospace; font-weight: 700; font-size: 12px;
+                 background: var(--teal-lt); color: var(--teal); padding: 2px 7px;
+                 border-radius: 4px; white-space: nowrap; }
+    .code-pill.orange { background: #fef3e2; color: var(--warn); }
+    .code-pill.blue   { background: #e8f2fc; color: var(--blue); }
+    .code-pill.red    { background: #fdecea; color: var(--red); }
+    .code-pill.purple { background: #f3ebfc; color: #7f3fbf; }
+
+    .example { font-family: monospace; font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    /* PROMPT VIEWER */
+    .prompt-box { background: #1a2332; color: #c8d8e8; font-family: monospace;
+                  font-size: 12px; line-height: 1.7; padding: 20px 24px;
+                  border-radius: 8px; white-space: pre-wrap; word-break: break-word;
+                  max-height: 500px; overflow-y: auto; }
+    .prompt-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+    .ptab { padding: 5px 14px; border-radius: 6px 6px 0 0; font-size: 13px;
+            font-weight: 600; cursor: pointer; background: var(--line);
+            color: var(--muted); border: 1px solid var(--line); border-bottom: none;
+            transition: background .12s; }
+    .ptab.active { background: #1a2332; color: #c8d8e8; border-color: #1a2332; }
+    .ptab-panel { display: none; }
+    .ptab-panel.active { display: block; }
+
+    .rules-box { background: var(--card); border: 1px solid var(--line);
+                 border-radius: 8px; padding: 20px; font-size: 13px; color: var(--muted);
+                 min-height: 80px; white-space: pre-wrap; }
+    .rules-empty { color: var(--line); font-style: italic; }
+
+    /* FINE-TUNE NOTES */
+    .note-list { list-style: none; }
+    .note-list li { display: flex; gap: 10px; padding: 10px 0;
+                    border-bottom: 1px solid var(--line); align-items: flex-start; }
+    .note-list li:last-child { border-bottom: none; }
+    .note-icon { font-size: 18px; flex-shrink: 0; }
+    .note-body strong { display: block; margin-bottom: 2px; }
+    .note-body span { color: var(--muted); font-size: 13px; }
+
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+
+    .loading-msg { color: var(--muted); font-size: 13px; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topbar">
+  <div class="topbar-left">
+    <div class="brand-mark">NA</div>
+    <h1>Prompt Guide</h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="nav-links">
+      <a href="/trade-codes" class="nav-link">📋 Trade Code Library</a>
+      <a href="/bq-analyzer" class="nav-link">✨ BQ Analyzer</a>
+      <a href="/prompt-guide" class="nav-link active">📖 Prompt Guide</a>
+      <a href="/" class="nav-link">← Cost Advisor</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-title">Trade Code Format &amp; AI Prompt Guide</div>
+  <div class="page-subtitle">Reference for understanding trade code structure, classification rules, and how to fine-tune the AI prompt.</div>
+
+  <!-- ANATOMY -->
+  <div class="section">
+    <div class="section-title">Trade Code Anatomy</div>
+    <div class="anatomy-card">
+      <div class="anatomy-formula">
+        <span class="seg-PIL">PIL</span><span class="seg-sep">-</span><span class="seg-TYPE">TYPE</span><span class="seg-sep">-</span><span class="seg-SIZE">SIZE</span><span class="seg-sep">-</span><span class="seg-ACT">ACTIVITY</span><span class="seg-sep seg-opt">[-</span><span class="seg-LOAD seg-opt">LOAD</span><span class="seg-sep seg-opt">]</span>
+      </div>
+      <div class="anatomy-legend">
+        <span class="leg-key seg-PIL">PIL</span>         <span class="leg-val">Fixed prefix — all piling trade codes start with PIL</span>
+        <span class="leg-key seg-TYPE">TYPE</span>        <span class="leg-val">Pile material / construction method (GEN, PRC, SPUN, BORED)</span>
+        <span class="leg-key seg-SIZE">SIZE</span>        <span class="leg-val">Pile cross-section or diameter (GEN for generic, or normalised dimensions)</span>
+        <span class="leg-key seg-ACT">ACTIVITY</span>    <span class="leg-val">Work scope for this BQ item — what is actually being done</span>
+        <span class="leg-key seg-LOAD">LOAD</span>         <span class="leg-val">Test load tonnage — only appended for static/dynamic load tests</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPE TABLE -->
+  <div class="section">
+    <div class="section-title">TYPE — Pile Material &amp; Method</div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Code</th><th>Pile Type</th><th>Description</th><th>Example Code</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="code-pill purple">GEN</span></td>
+            <td>General</td>
+            <td>Site-wide items not tied to a specific pile type — survey, equipment mobilisation, records, obstructions</td>
+            <td><span class="code-pill">PIL-GEN-GEN-SURVEY</span></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">PRC</span></td>
+            <td>Prestressed Reinforced Concrete</td>
+            <td>Square precast concrete piles; most common in Malaysia residential &amp; commercial. Sizes 125×125 to 300×300</td>
+            <td><span class="code-pill">PIL-PRC-150X150-DRIVE</span></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill blue">SPUN</span></td>
+            <td>Spun (Centrifugally Cast) Concrete</td>
+            <td>Hollow cylindrical high-strength concrete piles; used for heavy loads. Sizes typically 300 mm–600 mm dia</td>
+            <td><span class="code-pill blue">PIL-SPUN-600MM-SUPPLY</span></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill orange">BORED</span></td>
+            <td>Bored / Drilled Piles</td>
+            <td>Cast-in-place concrete in drilled shafts; used in congested sites or where vibration is restricted</td>
+            <td><span class="code-pill orange">PIL-BORED-600MM-DRIVE</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SIZE TABLE -->
+  <div class="section">
+    <div class="section-title">SIZE — Pile Dimension Format</div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Format</th><th>When to Use</th><th>Examples</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="code-pill">GEN</span></td>
+            <td>General items not specific to a pile size — survey, equipment mobilisation, records, piling obstructions</td>
+            <td><code>PIL-GEN-GEN-SURVEY</code><br><code>PIL-GEN-GEN-EQUIP-MOB</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">NNNxNNN</span></td>
+            <td>Square PRC pile — width × width in mm, no spaces</td>
+            <td><code>PIL-PRC-125X125-DRIVE</code><br><code>PIL-PRC-200X200-CUT</code><br><code>PIL-PRC-250X250-SUPPLY</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill blue">NNNmm</span></td>
+            <td>Round spun or bored pile — diameter in mm with MM suffix</td>
+            <td><code>PIL-SPUN-400MM-PDA</code><br><code>PIL-BORED-600MM-SUPPLY</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ACTIVITY TABLE -->
+  <div class="section">
+    <div class="section-title">ACTIVITY — Work Scope</div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Code</th><th>Activity</th><th>Trigger Keywords</th><th>Example Code</th></tr></thead>
+        <tbody>
+          <tr><td><span class="code-pill purple">SURVEY</span></td><td>Setting out / as-built survey</td><td>survey, setting out, as-built</td><td><span class="code-pill">PIL-GEN-GEN-SURVEY</span></td></tr>
+          <tr><td><span class="code-pill purple">RECORD</span></td><td>Piling / driving records</td><td>piling records, driving records, blow count</td><td><span class="code-pill">PIL-GEN-GEN-RECORD</span></td></tr>
+          <tr><td><span class="code-pill purple">EQUIP-MOB</span></td><td>Equipment mobilisation</td><td>move, handle, provision, transport, assemble, remove piling rig / equipment</td><td><span class="code-pill">PIL-GEN-GEN-EQUIP-MOB</span></td></tr>
+          <tr><td><span class="code-pill purple">OBSTRUCTION</span></td><td>Obstruction removal</td><td>underground obstruction, remove obstruction</td><td><span class="code-pill">PIL-GEN-GEN-OBSTRUCTION</span></td></tr>
+          <tr><td><span class="code-pill">SUPPLY</span></td><td>Supply &amp; deliver piles</td><td>supply and deliver, supply of piles</td><td><span class="code-pill">PIL-PRC-150X150-SUPPLY</span></td></tr>
+          <tr><td><span class="code-pill">DRIVE</span></td><td>Install / drive piles</td><td>uplift, pitch, drive, install; or supply AND drive in one item</td><td><span class="code-pill">PIL-PRC-150X150-DRIVE</span></td></tr>
+          <tr><td><span class="code-pill orange">CUT</span></td><td>Cut off pile heads</td><td>cut-off, cut pile head, cutting of pile heads</td><td><span class="code-pill orange">PIL-PRC-150X150-CUT</span></td></tr>
+          <tr><td><span class="code-pill orange">CUT-OBSTRUCTION</span></td><td>Cut pile at obstruction depth</td><td>cut to ground level due to obstruction</td><td><span class="code-pill orange">PIL-PRC-125X125-CUT-OBSTRUCTION</span></td></tr>
+          <tr><td><span class="code-pill blue">JOINT</span></td><td>Pile splicing / extension</td><td>splice, weld, sleeve joint, pile joints, extension piece</td><td><span class="code-pill blue">PIL-PRC-150X150-JOINT</span></td></tr>
+          <tr><td><span class="code-pill blue">PREBORE</span></td><td>Pre-bored pilot hole</td><td>pre-bore, pre-boring, pilot hole</td><td><span class="code-pill blue">PIL-PRC-200X200-PREBORE</span></td></tr>
+          <tr><td><span class="code-pill blue">REDRIVE</span></td><td>Re-drive rejected pile</td><td>re-drive, re-driving, rejected pile</td><td><span class="code-pill blue">PIL-PRC-150X150-REDRIVE</span></td></tr>
+          <tr><td><span class="code-pill red">PDA</span></td><td>Pile Driving Analysis (dynamic test)</td><td>PDA, pile driving analysis, PDA load test — takes priority over LOAD</td><td><span class="code-pill red">PIL-PRC-150X150-PDA</span></td></tr>
+          <tr><td><span class="code-pill red">LOAD-PRELIM</span></td><td>Preliminary load test</td><td>preliminary load test + load suffix (36T, 45T, 50T, 90T)</td><td><span class="code-pill red">PIL-PRC-150X150-LOAD-PRELIM-50T</span></td></tr>
+          <tr><td><span class="code-pill red">LOAD-SUBSEQ</span></td><td>Subsequent load test</td><td>subsequent load test + load suffix</td><td><span class="code-pill red">PIL-PRC-150X150-LOAD-SUBSEQ-50T</span></td></tr>
+          <tr><td><span class="code-pill red">LOAD-MAINT</span></td><td>Maintained / static load test</td><td>maintained load test, static load test + load suffix</td><td><span class="code-pill red">PIL-PRC-150X150-LOAD-MAINT-50T</span></td></tr>
+          <tr><td><span class="code-pill red">LOAD</span></td><td>Load test (sequence unclear)</td><td>load test or loading arrangement, but prelim/subseq/maintained not stated</td><td><span class="code-pill red">PIL-PRC-150X150-LOAD</span></td></tr>
+          <tr><td><span class="code-pill">OTHER</span></td><td>Catch-all</td><td>Attendance, provisional, lump sum, or any item that doesn't fit above</td><td><span class="code-pill">PIL-GEN-GEN-OTHER</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LOAD SUFFIX -->
+  <div class="section">
+    <div class="section-title">LOAD Suffix — Test Tonnage</div>
+    <div class="card">
+      <p style="margin-bottom:12px;color:var(--muted)">Appended only for static load test activities (LOAD, LOAD-PRELIM, LOAD-SUBSEQ, LOAD-MAINT). Derived from the actual test load in the BQ description.</p>
+      <table>
+        <thead><tr><th>Suffix</th><th>Load</th><th>Typical Pile Size</th></tr></thead>
+        <tbody>
+          <tr><td><span class="code-pill red">36T</span></td><td>36 tonnes</td><td>125×125 mm PRC piles</td></tr>
+          <tr><td><span class="code-pill red">45T</span></td><td>45 tonnes</td><td>125×125 mm PRC (higher capacity) or 150×150 mm</td></tr>
+          <tr><td><span class="code-pill red">50T</span></td><td>50 tonnes</td><td>150×150 mm PRC piles</td></tr>
+          <tr><td><span class="code-pill red">90T</span></td><td>90 tonnes</td><td>200×200 mm PRC or larger piles</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px;font-size:12px;color:var(--muted)">⚠ Do NOT add LOAD suffix just because the pile description mentions "working load", "load bearing" or tonnage capacity — only when the item is actually a load test.</p>
+    </div>
+  </div>
+
+  <!-- PROMPT VIEWER -->
+  <div class="section">
+    <div class="section-title">Live AI Prompt</div>
+    <div class="prompt-tabs">
+      <div class="ptab active" onclick="showTab('base')">Base System Prompt</div>
+      <div class="ptab" onclick="showTab('active')">Active Prompt (with rules)</div>
+      <div class="ptab" onclick="showTab('rules')">Tuning Rules File</div>
+    </div>
+
+    <div id="tab-base" class="ptab-panel active">
+      <div id="promptBase" class="prompt-box"><span class="loading-msg">Loading…</span></div>
+    </div>
+    <div id="tab-active" class="ptab-panel">
+      <div id="promptActive" class="prompt-box"><span class="loading-msg">Loading…</span></div>
+    </div>
+    <div id="tab-rules" class="ptab-panel">
+      <div class="rules-box" id="rulesBox"><span class="loading-msg">Loading…</span></div>
+      <p id="rulesFile" style="font-size:12px;color:var(--muted);margin-top:8px;"></p>
+    </div>
+  </div>
+
+  <!-- FINE-TUNE NOTES -->
+  <div class="section">
+    <div class="section-title">Fine-Tuning Discussion Notes</div>
+    <div class="card">
+      <ul class="note-list">
+        <li>
+          <span class="note-icon">🎯</span>
+          <div class="note-body">
+            <strong>Classification Priority Rules</strong>
+            <span>PDA always wins over LOAD when both keywords appear. SUPPLY vs DRIVE is determined by whether the pile has already been delivered ("uplift from stack" implies delivered, so classify DRIVE).</span>
+          </div>
+        </li>
+        <li>
+          <span class="note-icon">⚠️</span>
+          <div class="note-body">
+            <strong>False LOAD Triggers</strong>
+            <span>Words like "working load", "load bearing", or pile capacity tonnages in supply/drive items should NOT trigger a LOAD activity. Only classify as LOAD when the item is explicitly a test.</span>
+          </div>
+        </li>
+        <li>
+          <span class="note-icon">📐</span>
+          <div class="note-body">
+            <strong>Size Normalisation</strong>
+            <span>Contract BQ text often uses loose formatting: "125mm x 125mm", "125 x 125", "125x125". The AI should normalise all to 125X125 (no spaces, uppercase X). Ensure examples in the prompt cover all common variants.</span>
+          </div>
+        </li>
+        <li>
+          <span class="note-icon">🔧</span>
+          <div class="note-body">
+            <strong>How to Add Rules Without Changing Code</strong>
+            <span>Edit <code>prompt_tuning_rules.txt</code> in the project root. Rules appended there are automatically merged into the active prompt at runtime. Use this for audit-derived corrections — no deployment needed.</span>
+          </div>
+        </li>
+        <li>
+          <span class="note-icon">📊</span>
+          <div class="note-body">
+            <strong>Confidence Calibration</strong>
+            <span>A confidence below 0.65 (shown in yellow in BQ Analyzer) usually means the description is ambiguous or uses unusual wording. These are good candidates for manual review in the Trade Code Library.</span>
+          </div>
+        </li>
+        <li>
+          <span class="note-icon">🧪</span>
+          <div class="note-body">
+            <strong>Testing a New Rule</strong>
+            <span>Add the rule to <code>prompt_tuning_rules.txt</code>, then paste a real BQ description into BQ Analyzer and check the trade code and reasoning. Review the "Active Prompt" tab above to confirm the rule is merged correctly.</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(name) {
+    document.querySelectorAll('.ptab').forEach((t, i) => {
+      const tabs = ['base', 'active', 'rules'];
+      t.classList.toggle('active', tabs[i] === name);
+    });
+    document.querySelectorAll('.ptab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  async function loadPromptConfig() {
+    try {
+      const res = await fetch('/api/prompt-config');
+      if (!res.ok) throw new Error(res.statusText);
+      const d = await res.json();
+
+      document.getElementById('promptBase').textContent = d.system_prompt || '(empty)';
+      document.getElementById('promptActive').textContent = d.active_prompt || '(empty)';
+
+      const rulesBox = document.getElementById('rulesBox');
+      if (d.tuning_rules) {
+        rulesBox.textContent = d.tuning_rules;
+        rulesBox.style.color = '';
+      } else {
+        rulesBox.innerHTML = '<span class="rules-empty">No tuning rules file found — create prompt_tuning_rules.txt in the project root to add audit-derived rules.</span>';
+      }
+      document.getElementById('rulesFile').textContent = 'File: ' + (d.rules_file || 'prompt_tuning_rules.txt');
+    } catch (e) {
+      const msg = 'Failed to load prompt config: ' + e.message;
+      document.getElementById('promptBase').textContent = msg;
+      document.getElementById('promptActive').textContent = msg;
+      document.getElementById('rulesBox').textContent = msg;
+    }
+  }
+
+  loadPromptConfig();
+</script>
+</body>
+</html>

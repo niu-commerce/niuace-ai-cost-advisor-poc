@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BQ Rate Analyzer — NiuAce</title>
+  <style>
+    :root {
+      --bg: #f5f7fa; --panel: #fff; --ink: #172033; --muted: #657083; --line: #dfe5ec;
+      --green: #1f9d55; --green-soft: #e7f8ee;
+      --yellow: #b7791f; --yellow-soft: #fff6db;
+      --red: #c53030; --red-soft: #fde8e8;
+      --blue: #1a56db; --blue-soft: #e8f0fd;
+      --teal: #007c89; --teal-soft: #e0f4f6;
+      --orange: #c05621; --orange-soft: #fff3e8;
+      --magenta: #a30f8b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter,"Segoe UI",Arial,sans-serif;
+      background: var(--bg); color: var(--ink);
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+
+    /* ── NAV ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 52px; background: var(--ink);
+      border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: grid; place-items: center; font-weight: 800; color: #fff; font-size: 11px;
+      background: linear-gradient(135deg,var(--magenta),var(--teal));
+    }
+    .topbar h1 { font-size: 14px; font-weight: 700; color: #fff; }
+    .nav-links { display: flex; gap: 6px; }
+    .nav-link {
+      font-size: 13px; font-weight: 500; color: #ccd; text-decoration: none;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px; padding: 5px 12px; transition: background .15s, color .15s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.25); }
+    .nav-link.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--line); border-top-color: var(--teal);
+      border-radius: 50%; animation: spin .55s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── BODY LAYOUT ── */
+    .page { max-width: 1200px; margin: 0 auto; padding: 28px 24px 60px; width: 100%; }
+
+    /* ── INPUT CARD ── */
+    .input-card {
+      background: #fff; border-radius: 12px; padding: 28px;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 12px rgba(18,38,63,.06);
+    }
+    .input-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .input-card .subtitle { font-size: 12px; color: var(--muted); margin-bottom: 22px; }
+
+    .form-grid { display: grid; grid-template-columns: 220px 1fr 110px; gap: 16px; align-items: start; }
+    .form-group label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--muted); margin-bottom: 5px;
+    }
+    .form-group select,
+    .form-group input,
+    .form-group textarea {
+      width: 100%; padding: 9px 11px;
+      border: 1px solid var(--line); border-radius: 7px;
+      font: inherit; font-size: 13px; outline: none; background: #fff;
+      transition: border-color .15s;
+    }
+    .form-group select:focus,
+    .form-group input:focus,
+    .form-group textarea:focus { border-color: var(--teal); }
+
+    .desc-wrap { grid-column: 1 / -1; }
+    .form-group textarea {
+      min-height: 90px; resize: vertical; line-height: 1.5;
+    }
+
+    .form-actions {
+      display: flex; align-items: center; gap: 12px; margin-top: 18px;
+    }
+    .btn-analyze {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border: none; border-radius: 8px;
+      background: var(--teal); color: #fff;
+      font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-analyze:hover { background: #005d66; }
+    .btn-analyze:disabled { background: #9ca3af; cursor: not-allowed; }
+    .btn-clear {
+      font: inherit; font-size: 13px; color: var(--muted); cursor: pointer;
+      background: none; border: 1px solid var(--line); border-radius: 7px; padding: 9px 14px;
+    }
+    .btn-clear:hover { color: var(--ink); }
+    .ai-provider-note { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+    /* ── DIVIDER ── */
+    .section-divider {
+      display: flex; align-items: center; gap: 12px; margin: 30px 0 20px;
+    }
+    .section-divider span { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; white-space: nowrap; }
+    .section-divider::before, .section-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--line);
+    }
+
+    /* ── AI SUGGESTION CARD ── */
+    .suggestion-card {
+      background: #fff; border-radius: 12px; padding: 22px 26px;
+      border: 2px solid var(--teal); margin-bottom: 24px;
+      box-shadow: 0 2px 12px rgba(0,124,137,.08);
+    }
+    .suggestion-header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    }
+    .suggestion-left {}
+    .suggestion-eyebrow {
+      font-size: 10px; font-weight: 700; color: var(--teal);
+      text-transform: uppercase; letter-spacing: .8px; margin-bottom: 4px;
+    }
+    .suggestion-code {
+      font-size: 24px; font-weight: 800;
+      font-family: "Cascadia Code","Fira Code",monospace;
+      color: var(--ink); letter-spacing: -.3px;
+    }
+    .suggestion-name { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    .suggestion-right { flex-shrink: 0; text-align: right; }
+    .conf-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .conf-row { display: flex; align-items: center; gap: 8px; }
+    .conf-bar-bg { width: 120px; height: 8px; background: var(--line); border-radius: 4px; }
+    .conf-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
+    .conf-bar-fill.high { background: var(--green); }
+    .conf-bar-fill.med  { background: var(--yellow); }
+    .conf-bar-fill.low  { background: var(--red); }
+    .conf-pct { font-size: 14px; font-weight: 700; }
+    .conf-pct.high { color: var(--green); }
+    .conf-pct.med  { color: var(--yellow); }
+    .conf-pct.low  { color: var(--red); }
+
+    .reasoning-box {
+      margin-top: 14px; padding: 10px 14px;
+      background: var(--teal-soft); border-radius: 7px;
+      font-size: 12px; color: #005d66; line-height: 1.55;
+    }
+    .reasoning-box strong { font-weight: 600; }
+
+    /* ── RATE CARDS ── */
+    .rate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 800px) { .rate-grid { grid-template-columns: 1fr; } }
+
+    .rate-card {
+      background: #fff; border-radius: 12px;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 8px rgba(18,38,63,.05);
+      overflow: hidden;
+    }
+    .rate-card-head {
+      padding: 14px 18px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .rate-card-head.same-bu { background: linear-gradient(135deg, #e0f4f6, #f0fbfc); }
+    .rate-card-head.all-bu  { background: linear-gradient(135deg, #e8f0fd, #f4f7ff); }
+    .rate-card-title { font-size: 13px; font-weight: 700; }
+    .rate-card-sub   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .rate-card-icon  { font-size: 22px; }
+
+    .rate-card-body { padding: 18px; }
+
+    /* Reference rate block */
+    .proposed-block {
+      text-align: center; padding: 16px 16px 12px;
+      background: var(--bg); border-radius: 8px; margin-bottom: 12px;
+    }
+    .proposed-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .proposed-rate  { font-size: 32px; font-weight: 800; color: var(--teal); letter-spacing: -.5px; }
+    .proposed-note  { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .proposed-band  {
+      font-size: 11px; color: var(--orange); font-weight: 600;
+      background: var(--orange-soft); padding: 3px 8px; border-radius: 20px;
+      display: inline-block; margin-top: 6px;
+    }
+    .ref-disclaimer {
+      font-size: 11px; color: #92660a; background: #fef9ec;
+      border: 1px solid #f5d87a; border-radius: 6px;
+      padding: 7px 10px; margin-bottom: 14px; line-height: 1.5;
+    }
+    .ref-disclaimer strong { font-weight: 600; }
+    .no-data-msg { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 0; }
+
+    /* Stats row */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 0; border: 1px solid var(--line); border-radius: 7px;
+      overflow: hidden; margin-bottom: 16px;
+    }
+    .stat-cell { padding: 8px 10px; text-align: center; border-right: 1px solid var(--line); }
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell strong { display: block; font-size: 13px; font-weight: 700; }
+    .stat-cell span   { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+    .stat-cell.hl strong { color: var(--teal); }
+
+    /* Year trend */
+    .trend-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+    .trend-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+    .trend-table th { text-align: right; padding: 3px 6px; font-size: 10px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); }
+    .trend-table th:first-child { text-align: left; }
+    .trend-table td { padding: 4px 6px; text-align: right; border-bottom: 1px solid #f0f3f7; }
+    .trend-table td:first-child { text-align: left; font-weight: 600; }
+    .trend-bar-cell { padding: 4px 6px !important; }
+    .trend-bar { height: 6px; background: var(--teal); border-radius: 3px; opacity: .7; min-width: 2px; }
+
+    /* Recent contracts */
+    .recent-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+    .rc-list      { border-top: 1px solid var(--line); }
+    .rc-row       { padding: 8px 2px; border-bottom: 1px solid #f0f3f7; }
+    .rc-row:last-child { border-bottom: none; }
+    .rc-line1     { display: flex; align-items: center; gap: 0; margin-bottom: 3px; font-size: 12px; }
+    .rc-l1-cno    { font-weight: 700; color: var(--ink); min-width: 0; flex: 0 0 auto; margin-right: 8px; }
+    .rc-l1-sep    { color: var(--line); margin-right: 8px; flex: 0 0 auto; }
+    .rc-l1-bu     { color: var(--teal); font-weight: 600; font-size: 11px; flex: 0 0 auto; margin-right: 8px; }
+    .rc-l1-contr  { color: var(--muted); font-size: 11px; flex: 1 1 0; min-width: 0;
+                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rc-l1-date   { color: var(--muted); font-size: 11px; flex: 0 0 auto; white-space: nowrap; margin-left: 8px; }
+    .rc-line2     { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .rc-l2-desc   { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rc-l2-count  { flex: 0 0 auto; font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .rc-l2-rate   { flex: 0 0 80px; text-align: right; font-weight: 700; color: var(--ink);
+                    white-space: nowrap; font-size: 13px; }
+
+    /* empty/loading */
+    .empty-result {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 50px 20px; gap: 10px;
+      color: var(--muted); font-size: 13px;
+    }
+    .empty-result .icon { font-size: 36px; opacity: .3; }
+
+    .hidden { display: none !important; }
+
+    /* ── LOADING SECTION ── */
+    .loading-card {
+      background: #fff; border-radius: 12px; padding: 40px 32px;
+      border: 1px solid var(--line); text-align: center;
+      box-shadow: 0 2px 12px rgba(18,38,63,.06); margin: 8px 0;
+    }
+    .loading-brain {
+      font-size: 52px; display: block; margin-bottom: 12px;
+      animation: brainPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes brainPulse {
+      0%,100% { transform: scale(1);    filter: brightness(1); }
+      50%      { transform: scale(1.12); filter: brightness(1.15); }
+    }
+    .loading-title {
+      font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 5px;
+    }
+    .loading-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 26px; }
+
+    .progress-track {
+      height: 7px; background: var(--line); border-radius: 4px;
+      max-width: 420px; margin: 0 auto 28px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 4px; width: 0%;
+      background: linear-gradient(90deg, var(--teal), var(--magenta));
+      transition: width 1.2s cubic-bezier(.4,0,.2,1);
+    }
+
+    .steps-list {
+      display: flex; flex-direction: column; gap: 8px;
+      max-width: 400px; margin: 0 auto; text-align: left;
+    }
+    .step-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; border-radius: 8px; font-size: 13px;
+      transition: all .35s ease;
+    }
+    .step-item.pending { color: #bbb; background: transparent; }
+    .step-item.active  { color: var(--teal); background: var(--teal-soft); font-weight: 600; }
+    .step-item.done    { color: var(--green); background: var(--green-soft); }
+    .step-icon { font-size: 15px; flex-shrink: 0; width: 22px; text-align: center; }
+
+    /* btn loading shimmer */
+    .btn-analyze.is-loading {
+      background: linear-gradient(90deg, var(--teal), #005d66, var(--teal));
+      background-size: 200% 100%;
+      animation: shimmer 1.8s ease infinite;
+      cursor: wait;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 0%   50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0%   50%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topbar">
+  <div class="topbar-left">
+    <div class="brand-mark">NA</div>
+    <h1>BQ Rate Analyzer</h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="spinner" class="spinner hidden"></span>
+    <div class="nav-links">
+      <a href="/trade-codes" class="nav-link">📋 Trade Code Library</a>
+      <a href="/bq-analyzer" class="nav-link active">✨ BQ Analyzer</a>
+      <a href="/prompt-guide" class="nav-link">📖 Prompt Guide</a>
+      <a href="/" class="nav-link">← Cost Advisor</a>
+    </div>
+  </div>
+</nav>
+
+<!-- PAGE BODY -->
+<div class="page">
+
+  <!-- INPUT CARD -->
+  <div class="input-card">
+    <h2>✨ AI Trade Code &amp; Rate Advisor</h2>
+    <p class="subtitle">Enter a BQ item description and select the business unit — AI will suggest the trade code and analyze historical unit rates.</p>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Business Unit</label>
+        <select id="buSelect">
+          <option value="">— All / Not specified —</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>UOM <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <select id="uomInput">
+          <option value="">— Not specified —</option>
+          <optgroup label="Count-based">
+            <option value="NR">NR — Number (per pile / per test)</option>
+            <option value="NO">NO — Number (alternative notation)</option>
+            <option value="ITEM">ITEM — Lump Sum Item</option>
+            <option value="LS">LS — Lump Sum</option>
+          </optgroup>
+          <optgroup label="Length-based">
+            <option value="M">M — Metre (running metre of pile)</option>
+            <option value="LM">LM — Linear Metre</option>
+          </optgroup>
+          <optgroup label="Volume-based">
+            <option value="M3">M³ — Cubic Metre (bored piles)</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group desc-wrap" style="margin-top:14px">
+      <label>BQ Item Description</label>
+      <textarea id="descInput" placeholder="Paste or type the full BQ item description here…&#10;e.g. Supply and deliver 125mm × 125mm × 7m prestressed concrete piles, Grade G40, conforming to BS 8110, complete with MS5/7 steel pointed shoe, per nominal running metre of pile installed."></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-analyze" id="analyzeBtn">
+        <span id="analyzeBtnIcon">✨</span>
+        <span id="analyzeBtnText">Analyze with AI</span>
+      </button>
+      <button class="btn-clear" id="clearBtn">Clear</button>
+      <span class="ai-provider-note" id="providerNote"></span>
+    </div>
+  </div>
+
+  <!-- RESULTS (hidden until first analysis) -->
+  <div id="resultsSection" class="hidden">
+
+    <div class="section-divider"><span>AI Suggestion</span></div>
+
+    <!-- AI SUGGESTION -->
+    <div class="suggestion-card" id="suggestionCard">
+      <div class="suggestion-header">
+        <div class="suggestion-left">
+          <div class="suggestion-eyebrow">🤖 Suggested Trade Code</div>
+          <div class="suggestion-code" id="sgCode">—</div>
+          <div class="suggestion-name" id="sgName"></div>
+        </div>
+        <div class="suggestion-right">
+          <div class="conf-label">Confidence</div>
+          <div class="conf-row">
+            <div class="conf-bar-bg">
+              <div class="conf-bar-fill" id="confBarFill" style="width:0%"></div>
+            </div>
+            <span class="conf-pct" id="confPct">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="reasoning-box" id="reasoningBox"></div>
+    </div>
+
+    <div class="section-divider"><span>Historical Rate Analysis</span></div>
+
+    <!-- RATE CARDS -->
+    <div class="rate-grid">
+
+      <!-- Same BU -->
+      <div class="rate-card" id="sameBuCard">
+        <div class="rate-card-head same-bu">
+          <div>
+            <div class="rate-card-title" id="sameBuTitle">Same Business Unit</div>
+            <div class="rate-card-sub">Contracts within the same BU only</div>
+          </div>
+          <div class="rate-card-icon">🏢</div>
+        </div>
+        <div class="rate-card-body" id="sameBuBody">
+          <div class="no-data-msg">Select a business unit to see BU-specific rates</div>
+        </div>
+      </div>
+
+      <!-- All BU -->
+      <div class="rate-card">
+        <div class="rate-card-head all-bu">
+          <div>
+            <div class="rate-card-title">All Business Units</div>
+            <div class="rate-card-sub">Across all projects &amp; BUs in the system</div>
+          </div>
+          <div class="rate-card-icon">🌐</div>
+        </div>
+        <div class="rate-card-body" id="allBuBody">
+          <div class="no-data-msg">Run analysis to see rates</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LOADING (shown while AI is working) -->
+  <div id="loadingSection" class="hidden">
+    <div class="loading-card">
+      <span class="loading-brain">🧠</span>
+      <div class="loading-title">AI is analyzing your BQ item…</div>
+      <div class="loading-subtitle" id="loadingSubtitle">This usually takes 5–20 seconds depending on the AI provider</div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="steps-list">
+        <div class="step-item pending" id="step1">
+          <span class="step-icon">○</span>Reading and parsing BQ item description
+        </div>
+        <div class="step-item pending" id="step2">
+          <span class="step-icon">○</span>Sending to AI for trade code classification
+        </div>
+        <div class="step-item pending" id="step3">
+          <span class="step-icon">○</span>Searching 2,463 historical piling BQ records
+        </div>
+        <div class="step-item pending" id="step4">
+          <span class="step-icon">○</span>Comparing same Business Unit vs all-BU rates
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLACEHOLDER (shown before first analysis) -->
+  <div id="placeholder">
+    <div class="empty-result">
+      <div class="icon">📊</div>
+      <div>Enter a BQ description above and click <strong>Analyze with AI</strong></div>
+      <div style="font-size:12px">AI will suggest a trade code and pull historical rates from 2,463 piling BQ records</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── INIT ─────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  loadBUs();
+  document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
+  document.getElementById('clearBtn').addEventListener('click', clearForm);
+  document.getElementById('descInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runAnalysis();
+  });
+});
+
+async function loadBUs() {
+  try {
+    const d = await api('/api/business-units');
+    const sel = document.getElementById('buSelect');
+    (d.units || []).forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u; opt.textContent = u;
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.error('BU load', e); }
+}
+
+/* ── LOADING SEQUENCE ─────────────────────────────────────────────── */
+const STEPS = [
+  { id: 'step1', icon: '📖', activeIcon: '📖', doneIcon: '✅' },
+  { id: 'step2', icon: '🤖', activeIcon: '🤖', doneIcon: '✅' },
+  { id: 'step3', icon: '🔍', activeIcon: '🔍', doneIcon: '✅' },
+  { id: 'step4', icon: '📊', activeIcon: '📊', doneIcon: '✅' },
+];
+// ms after click when each step becomes active
+const STEP_DELAYS = [0, 900, 4000, 7000];
+// progress bar % targets per step
+const PROGRESS_PCT = [12, 40, 72, 88];
+
+let stepTimers = [];
+
+function startLoadingSequence() {
+  window._recentRows = {};
+  // Clear old results immediately
+  document.getElementById('resultsSection').classList.add('hidden');
+  document.getElementById('placeholder').classList.add('hidden');
+  document.getElementById('loadingSection').classList.remove('hidden');
+
+  // Reset steps
+  STEPS.forEach(s => {
+    const el = document.getElementById(s.id);
+    el.className = 'step-item pending';
+    el.querySelector('.step-icon').textContent = '○';
+  });
+  document.getElementById('progressFill').style.width = '0%';
+
+  // Kick off step timers
+  stepTimers = STEPS.map((s, i) =>
+    setTimeout(() => {
+      // Mark previous done
+      if (i > 0) setStepState(STEPS[i-1].id, 'done', STEPS[i-1].doneIcon);
+      setStepState(s.id, 'active', s.activeIcon);
+      document.getElementById('progressFill').style.width = PROGRESS_PCT[i] + '%';
+    }, STEP_DELAYS[i])
+  );
+}
+
+function stopLoadingSequence() {
+  stepTimers.forEach(t => clearTimeout(t));
+  stepTimers = [];
+  // Briefly flash 100%, then hide
+  STEPS.forEach(s => setStepState(s.id, 'done', s.doneIcon));
+  document.getElementById('progressFill').style.width = '100%';
+  setTimeout(() => {
+    document.getElementById('loadingSection').classList.add('hidden');
+  }, 450);
+}
+
+function setStepState(id, state, icon) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `step-item ${state}`;
+  el.querySelector('.step-icon').textContent = state === 'active'
+    ? icon : state === 'done' ? '✅' : '○';
+}
+
+/* ── ANALYZE ──────────────────────────────────────────────────────── */
+async function runAnalysis() {
+  const desc = document.getElementById('descInput').value.trim();
+  if (!desc) { document.getElementById('descInput').focus(); return; }
+
+  const bu  = document.getElementById('buSelect').value;
+  const uom = document.getElementById('uomInput').value.trim();
+
+  // Update subtitle with provider hint
+  const provNote = document.getElementById('loadingSubtitle');
+  provNote.textContent = 'Calling AI model… this usually takes 5–20 seconds';
+
+  startLoadingSequence();
+  setBtnLoading(true);
+
+  try {
+    const result = await api('/api/analyze-bq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: desc, business_unit: bu, uom }),
+    });
+    stopLoadingSequence();
+    renderResults(result);
+  } catch(e) {
+    stopLoadingSequence();
+    document.getElementById('placeholder').classList.remove('hidden');
+    alert('Analysis failed: ' + e.message);
+  } finally {
+    setBtnLoading(false);
+  }
+}
+
+/* ── RENDER ───────────────────────────────────────────────────────── */
+function renderResults(r) {
+  document.getElementById('placeholder').classList.add('hidden');
+  document.getElementById('resultsSection').classList.remove('hidden');
+
+  // Provider note
+  $t('providerNote', `Provider: ${r.provider} / ${r.model}`);
+
+  // AI suggestion
+  window._tradeCode = r.trade_code || '';
+  const sg   = r.suggestion || {};
+  const code = r.trade_code || '—';
+  const conf = parseFloat(sg.confidence) || 0;
+  const cls  = conf >= .9 ? 'high' : conf >= .7 ? 'med' : 'low';
+  const pct  = Math.round(conf * 100);
+
+  $t('sgCode', code);
+  $t('sgName', sg.suggested_trade_name || '');
+  document.getElementById('confBarFill').className = `conf-bar-fill ${cls}`;
+  document.getElementById('confBarFill').style.width = pct + '%';
+  document.getElementById('confPct').className = `conf-pct ${cls}`;
+  $t('confPct', pct + '%');
+  document.getElementById('reasoningBox').innerHTML =
+    `<strong>Reasoning:</strong> ${x(sg.reasoning || 'No reasoning provided.')}`;
+  if (sg.error) {
+    document.getElementById('reasoningBox').innerHTML =
+      `<span style="color:var(--red)">⚠ ${x(sg.error)}</span>`;
+  }
+
+  // Same BU card
+  const buLabel = r.business_unit || '';
+  $t('sameBuTitle', buLabel ? `Same BU — ${buLabel}` : 'Same Business Unit');
+  const sameBuData = r.rate_same_bu;
+  if (!buLabel || !sameBuData?.stats?.item_count) {
+    document.getElementById('sameBuBody').innerHTML = buLabel
+      ? '<div class="no-data-msg">No historical data for this BU + trade code combination</div>'
+      : '<div class="no-data-msg">Select a business unit to see BU-specific rates</div>';
+  } else {
+    document.getElementById('sameBuBody').innerHTML = buildRateBody(sameBuData, 'sbu', r.trade_code);
+  }
+
+  // All BU card
+  const allBuData = r.rate_all;
+  if (!allBuData?.stats?.item_count) {
+    document.getElementById('allBuBody').innerHTML =
+      '<div class="no-data-msg">No historical data found for this trade code</div>';
+  } else {
+    document.getElementById('allBuBody').innerHTML = buildRateBody(allBuData, 'all', r.trade_code);
+  }
+}
+
+/* ── BUILD RATE CARD BODY ─────────────────────────────────────────── */
+function buildRateBody(data, prefix, tradeCode) {
+  window._recentRows = window._recentRows || {};
+  window._tradeCode = tradeCode || window._tradeCode || '';
+  const st = data.stats || {};
+  const byYear = data.by_year || [];
+  const recent = data.recent || [];
+
+  // Proposed rate = recent_2yr_avg if ≥ 2 items, else recent_5yr_avg, else avg_rate
+  let proposed, proposedNote;
+  if (st.recent_2yr_count >= 2 && st.recent_2yr_avg) {
+    proposed = parseFloat(st.recent_2yr_avg);
+    proposedNote = `Average of ${st.recent_2yr_count} items in last 2 years`;
+  } else if (st.recent_5yr_count >= 2 && st.recent_5yr_avg) {
+    proposed = parseFloat(st.recent_5yr_avg);
+    proposedNote = `Average of ${st.recent_5yr_count} items in last 5 years`;
+  } else if (st.avg_rate) {
+    proposed = parseFloat(st.avg_rate);
+    proposedNote = `Overall average (${st.item_count} items — limited recent data)`;
+  } else {
+    proposed = null;
+    proposedNote = 'Insufficient data';
+  }
+
+  const bandLow  = proposed ? (proposed * 0.90).toFixed(2) : null;
+  const bandHigh = proposed ? (proposed * 1.10).toFixed(2) : null;
+
+  // Reference rate block
+  let html = `<div class="proposed-block">
+    <div class="proposed-label">AI Reference Rate</div>
+    <div class="proposed-rate">${proposed ? fmtR(proposed) : 'N/A'}</div>
+    <div class="proposed-note">${x(proposedNote)}</div>
+    ${bandLow ? `<div class="proposed-band">Indicative Range: RM ${bandLow} – RM ${bandHigh} (±10%)</div>` : ''}
+  </div>
+  <div class="ref-disclaimer">
+    ⚠ <strong>For reference only.</strong> This rate is derived from historical BQ records classified
+    by AI. Accuracy depends on correct prior trade code tagging — always verify against actual contract
+    documents before use in budgeting or procurement decisions.
+  </div>`;
+
+  // Stats row
+  html += `<div class="stats-row">
+    <div class="stat-cell hl"><strong>${fmtR(st.avg_rate)}</strong><span>Avg All</span></div>
+    <div class="stat-cell"><strong>${fmtR(st.min_rate)}</strong><span>Min</span></div>
+    <div class="stat-cell"><strong>${fmtR(st.max_rate)}</strong><span>Max</span></div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-cell"><strong>${fmt(st.contract_count)}</strong><span>Contracts</span></div>
+    <div class="stat-cell"><strong>${fmt(st.item_count)}</strong><span>BQ Items</span></div>
+    <div class="stat-cell"><strong>${fmt(st.bu_count)}</strong><span>Bus. Units</span></div>
+  </div>`;
+
+  // Year trend
+  if (byYear.length) {
+    const maxRate = Math.max(...byYear.map(y => parseFloat(y.avg_rate) || 0));
+    html += `<div class="trend-title" style="margin-top:16px">Year-on-Year Trend</div>
+    <table class="trend-table">
+      <thead><tr>
+        <th>Year</th><th>Items</th><th>Avg Rate</th><th>Min</th><th>Max</th><th style="width:80px">Bar</th>
+      </tr></thead><tbody>`;
+    byYear.forEach(y => {
+      const pct = maxRate > 0 ? Math.round((parseFloat(y.avg_rate) / maxRate) * 100) : 0;
+      html += `<tr>
+        <td>${y.yr || '—'}</td>
+        <td class="r">${y.cnt}</td>
+        <td class="r">${fmtR(y.avg_rate)}</td>
+        <td class="r">${fmtR(y.min_rate)}</td>
+        <td class="r">${fmtR(y.max_rate)}</td>
+        <td class="trend-bar-cell"><div class="trend-bar" style="width:${pct}%"></div></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  // Recent contracts
+  if (recent.length) {
+    html += `<div class="recent-title">Recent Contracts <span style="font-weight:400;font-size:10px">(click description to expand)</span></div>
+    <div class="rc-list">`;
+    recent.forEach(r => {
+      const rid = prefix + '_' + r.id;
+      window._recentRows[rid] = r;
+      const countBadge = r.item_count > 1
+        ? `<span class="rc-l2-count">(×${r.item_count} items)</span>` : '';
+      html += `<div class="rc-row">
+        <div class="rc-line1">
+          <span class="rc-l1-cno">${x(r.contract_no || '—')}</span>
+          <span class="rc-l1-sep">|</span>
+          <span class="rc-l1-bu">${x(r.business_unit || '—')}</span>
+          <span class="rc-l1-sep">|</span>
+          <span class="rc-l1-contr">${x(r.contractor_name || '—')}</span>
+          <span class="rc-l1-date">📅 ${fmtDate(r.awarded_date)}</span>
+        </div>
+        <div class="rc-line2">
+          <a class="desc-link rc-l2-desc" href="#" onclick="showItemDetail('${rid}');return false;"
+             title="Click to view full details">${x((r.bq_item_description || '').slice(0,80))}…</a>
+          ${countBadge}
+          <span class="rc-l2-rate">${fmtR(r.unit_rate)}</span>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  return html;
+}
+
+/* ── HELPERS ──────────────────────────────────────────────────────── */
+function clearForm() {
+  stepTimers.forEach(t => clearTimeout(t));
+  stepTimers = [];
+  document.getElementById('descInput').value = '';
+  document.getElementById('uomInput').value = '';
+  document.getElementById('buSelect').value = '';
+  document.getElementById('resultsSection').classList.add('hidden');
+  document.getElementById('loadingSection').classList.add('hidden');
+  document.getElementById('placeholder').classList.remove('hidden');
+  setBtnLoading(false);
+  $t('providerNote', '');
+}
+
+async function api(url, opts = {}) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+function setBtnLoading(on) {
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = on;
+  btn.classList.toggle('is-loading', on);
+  $t('analyzeBtnIcon', on ? '⏳' : '✨');
+  $t('analyzeBtnText', on ? 'AI is analyzing…' : 'Analyze with AI');
+}
+
+function $t(id, v) { const e = document.getElementById(id); if (e) e.textContent = v; }
+
+function fmt(n) {
+  if (n == null || n === '') return '—';
+  return Number(n).toLocaleString();
+}
+
+function fmtR(n) {
+  const v = parseFloat(n);
+  if (!v || isNaN(v)) return '—';
+  return 'RM ' + v.toLocaleString('en-MY', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}); }
+  catch { return String(d).slice(0,10); }
+}
+
+function x(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function showItemDetail(rid) {
+  const r = (window._recentRows || {})[rid];
+  if (!r) return;
+
+  const headers = [r.parent_header_3, r.parent_header_2, r.parent_header_1].filter(Boolean);
+  const treeHtml = headers.length
+    ? headers.map((h, i) => `<div class="itd-tree-row" style="padding-left:${i*18}px">
+        <span class="itd-tree-icon">▸</span> ${x(h)}</div>`).join('')
+    : '<div style="color:var(--muted);font-size:13px;font-style:italic">No section headers</div>';
+
+  document.getElementById('itdContract').textContent   = r.contract_no || '—';
+  document.getElementById('itdContractor').textContent = r.contractor_name || '—';
+  document.getElementById('itdBU').textContent         = r.business_unit || '—';
+  document.getElementById('itdDate').textContent       = r.awarded_date ? fmtDate(r.awarded_date) : '—';
+  document.getElementById('itdUOM').textContent        = r.uom_code || '—';
+  document.getElementById('itdRate').textContent       = r.unit_rate != null ? 'RM ' + parseFloat(r.unit_rate).toFixed(2) : '—';
+  document.getElementById('itdTree').innerHTML         = treeHtml;
+  document.getElementById('itdDesc').textContent       = r.bq_item_description || '—';
+  document.getElementById('itdItemsList').innerHTML    = '<div class="itd-loading">Loading items…</div>';
+  document.getElementById('itemDetailModal').classList.remove('hidden');
+
+  // Fetch all items with same contract + rate
+  const tradeCode = window._tradeCode || '';
+  if (tradeCode && r.contract_no && r.unit_rate != null) {
+    try {
+      const qs = new URLSearchParams({
+        trade_code: tradeCode,
+        contract_no: r.contract_no,
+        unit_rate: r.unit_rate
+      });
+      const res = await fetch('/api/contract-rate-items?' + qs);
+      const d = await res.json();
+      document.getElementById('itdItemsList').innerHTML = buildItemsList(d.rows || []);
+    } catch(e) {
+      document.getElementById('itdItemsList').innerHTML = `<div class="itd-loading" style="color:var(--red)">Failed to load items</div>`;
+    }
+  } else {
+    document.getElementById('itdItemsList').innerHTML = '';
+  }
+}
+
+function buildItemsList(rows) {
+  if (!rows.length) return '<div class="itd-loading">No items found</div>';
+  let html = '';
+  rows.forEach((row, i) => {
+    const headers = [row.parent_header_3, row.parent_header_2, row.parent_header_1].filter(Boolean);
+    const treeStr = headers.join(' › ');
+    html += `<div class="itd-item-row">
+      <div class="itd-item-num">${i + 1}</div>
+      <div class="itd-item-body">
+        ${treeStr ? `<div class="itd-item-tree">${x(treeStr)}</div>` : ''}
+        <div class="itd-item-desc">${x(row.bq_item_description || '—')}</div>
+        <div class="itd-item-meta">
+          UOM: <strong>${x(row.uom_code || '—')}</strong>
+          &nbsp;·&nbsp; Qty: <strong>${row.quantity != null ? row.quantity : '—'}</strong>
+          &nbsp;·&nbsp; ID: <span style="font-family:monospace">[${row.id}]</span>
+        </div>
+      </div>
+    </div>`;
+  });
+  return html;
+}
+
+function closeItemDetail() {
+  document.getElementById('itemDetailModal').classList.add('hidden');
+}
+</script>
+
+<!-- ITEM DETAIL MODAL -->
+<style>
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:500;
+                   display:flex; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.hidden { display:none; }
+  .modal-box { background:#fff; border-radius:12px; width:100%; max-width:640px;
+               box-shadow:0 20px 60px rgba(0,0,0,0.25); overflow:hidden; }
+  .modal-hdr { background:var(--ink); color:#fff; padding:16px 20px;
+               display:flex; justify-content:space-between; align-items:center; }
+  .modal-hdr h3 { font-size:15px; font-weight:700; }
+  .modal-close { background:none; border:none; color:#aab; font-size:20px; cursor:pointer;
+                 line-height:1; padding:0 4px; }
+  .modal-close:hover { color:#fff; }
+  .modal-body { padding:20px; max-height:70vh; overflow-y:auto; }
+  .itd-meta { display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; margin-bottom:18px; }
+  .itd-field { display:flex; flex-direction:column; gap:2px; }
+  .itd-field label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .itd-field span { font-size:14px; font-weight:500; color:var(--ink); }
+  .itd-field span.rate { color:var(--teal); font-weight:700; font-size:16px; }
+  .itd-section-title { font-size:12px; font-weight:700; text-transform:uppercase;
+                       letter-spacing:.5px; color:var(--muted); margin:14px 0 8px; }
+  .itd-tree { background:#f5f7fa; border-radius:8px; padding:12px 14px; margin-bottom:14px; }
+  .itd-tree-row { font-size:13px; color:var(--ink); padding:3px 0; }
+  .itd-tree-icon { color:var(--teal); margin-right:6px; }
+  .itd-desc-box { background:#f5f7fa; border-radius:8px; padding:14px 16px;
+                  font-size:14px; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+  .desc-link { color:var(--teal); text-decoration:none; cursor:pointer; border-bottom:1px dashed var(--teal); }
+  .desc-link:hover { color:var(--ink); }
+  .itd-loading { color:var(--muted); font-size:13px; font-style:italic; padding:8px 0; }
+  .itd-item-row { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid #f0f3f7; font-size:13px; }
+  .itd-item-row:last-child { border-bottom:none; }
+  .itd-item-num { flex:0 0 22px; font-size:11px; font-weight:700; color:var(--muted);
+                  padding-top:2px; text-align:right; }
+  .itd-item-body { flex:1; min-width:0; }
+  .itd-item-tree { font-size:11px; color:var(--muted); margin-bottom:2px; }
+  .itd-item-desc { color:var(--ink); line-height:1.5; margin-bottom:3px; }
+  .itd-item-meta { font-size:11px; color:var(--muted); }
+</style>
+
+<div id="itemDetailModal" class="modal-overlay hidden" onclick="if(event.target===this)closeItemDetail()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3>BQ Item Detail</h3>
+      <button class="modal-close" onclick="closeItemDetail()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="itd-meta">
+        <div class="itd-field"><label>Contract No</label><span id="itdContract"></span></div>
+        <div class="itd-field"><label>Unit Rate</label><span id="itdRate" class="rate"></span></div>
+        <div class="itd-field"><label>Contractor</label><span id="itdContractor"></span></div>
+        <div class="itd-field"><label>Business Unit</label><span id="itdBU"></span></div>
+        <div class="itd-field"><label>Awarded Date</label><span id="itdDate"></span></div>
+        <div class="itd-field"><label>UOM</label><span id="itdUOM"></span></div>
+      </div>
+
+      <div class="itd-section-title">Section Context (first item)</div>
+      <div class="itd-tree" id="itdTree"></div>
+
+      <div class="itd-section-title">Representative Description</div>
+      <div class="itd-desc-box" id="itdDesc"></div>
+
+      <div class="itd-section-title" style="margin-top:16px">All Items at This Rate</div>
+      <div id="itdItemsList"></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NiuAce AI Cost Advisor</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260627-4">
+</head>
+<body>
+  <main id="app" class="app-shell">
+    <section id="landingPage" class="landing-page">
+      <nav class="topbar">
+        <div>
+          <div class="brand-mark">NA</div>
+          <span class="brand-name">NiuAce AI Cost Advisor</span>
+        </div>
+        <span class="pill muted">POC Demo</span>
+      </nav>
+
+      <div class="landing-grid">
+        <section class="hero">
+          <span class="eyebrow">EcoWorld Management Review</span>
+          <h1>NiuAce AI Cost Advisor</h1>
+          <p>Powered by 1,000+ EcoWorld Historical Contracts</p>
+          <div class="hero-stats">
+            <div><strong>2.8M</strong><span>BQ items indexed</span></div>
+            <div><strong>97%</strong><span>confidence score</span></div>
+            <div><strong>3 min</strong><span>review time</span></div>
+          </div>
+        </section>
+
+        <section class="upload-card">
+          <div class="upload-icon">AI</div>
+          <h2>Upload New Contract / VO</h2>
+          <div id="contractPickerWrap" class="hidden">
+            <label>Select Real Contract / LOA</label>
+            <select id="contractSelect"></select>
+          </div>
+          <label>Contract Name</label>
+          <input id="contractNameInput" value="Hana Parcel C" readonly>
+          <label>Contractor</label>
+          <input id="contractorInput" value="ABC Construction Sdn Bhd" readonly>
+          <div class="two-col">
+            <div>
+              <label>Contract Value</label>
+              <input id="contractValueInput" value="RM58.3 Million" readonly>
+            </div>
+            <div>
+              <label>Total BQ Items</label>
+              <input id="bqItemsInput" value="3,842" readonly>
+            </div>
+          </div>
+          <button id="startAnalysisBtn" class="primary-btn">Start AI Analysis</button>
+        </section>
+      </div>
+    </section>
+
+    <section id="dashboardPage" class="dashboard-page hidden">
+      <nav class="dashboard-topbar">
+        <div>
+          <div class="brand-mark">NA</div>
+          <div>
+            <h1>NiuAce AI Cost Advisor</h1>
+            <p id="dashboardSubtitle">Hana Parcel C - ABC Construction Sdn Bhd</p>
+          </div>
+        </div>
+        <button id="backBtn" class="ghost-btn">New Analysis</button>
+      </nav>
+
+      <section id="kpiGrid" class="kpi-grid"></section>
+
+      <section class="assessment-card">
+        <div>
+          <span id="assessmentBadge" class="status-badge normal">Normal</span>
+          <h2>AI Executive Summary</h2>
+          <p id="assessmentMessage">Most BQ items are within historical EcoWorld benchmark range. Management attention required only for 12 abnormal items.</p>
+        </div>
+        <button id="viewRiskBtn" class="secondary-btn">View High Risk Items</button>
+      </section>
+
+      <section id="riskSection" class="dashboard-grid">
+        <div class="main-column">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <span class="eyebrow">Benchmark exceptions</span>
+                <h2>High Risk Items</h2>
+              </div>
+              <span id="riskCountPill" class="pill danger">12 abnormal items</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>BQ Item</th>
+                    <th>Unit</th>
+                    <th>Current Rate</th>
+                    <th>Historical Average</th>
+                    <th>Difference</th>
+                    <th>Risk Level</th>
+                    <th>AI Recommendation</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="riskTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="detailPanel" class="panel"></section>
+        </div>
+
+        <aside class="side-column">
+          <section id="chatPanel" class="panel"></section>
+          <section id="recommendationPanel" class="panel"></section>
+        </aside>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/app.js?v=20260627-4"></script>
+</body>
+</html>

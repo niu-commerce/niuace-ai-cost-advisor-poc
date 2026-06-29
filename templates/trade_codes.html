@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Piling Trade Code Library — NiuAce</title>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --panel: #fff;
+      --ink: #172033;
+      --muted: #657083;
+      --line: #dfe5ec;
+      --green: #1f9d55; --green-soft: #e7f8ee;
+      --yellow: #b7791f; --yellow-soft: #fff6db;
+      --red: #c53030;   --red-soft: #fde8e8;
+      --blue: #1a56db;  --blue-soft: #e8f0fd;
+      --teal: #007c89;  --teal-soft: #e0f4f6;
+      --magenta: #a30f8b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter,"Segoe UI",Arial,sans-serif;
+      background: var(--bg); color: var(--ink);
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* ── NAV ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; height: 50px;
+      background: var(--ink); border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: grid; place-items: center; font-weight: 800; color: #fff; font-size: 11px;
+      background: linear-gradient(135deg,var(--magenta),var(--teal));
+    }
+    .topbar h1 { font-size: 14px; font-weight: 700; color: #fff; }
+    .nav-links { display: flex; gap: 6px; }
+    .nav-link {
+      padding: 5px 12px; border-radius: 6px; font-size: 13px; font-weight: 500;
+      color: #ccd; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+      text-decoration: none; transition: background .15s, color .15s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.25); }
+    .nav-link.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--line); border-top-color: var(--teal);
+      border-radius: 50%; animation: spin .55s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── STATS BAR ── */
+    .stats-bar {
+      display: flex; align-items: stretch; height: 38px;
+      background: #fff; border-bottom: 1px solid var(--line); flex-shrink: 0;
+    }
+    .sp {
+      display: flex; align-items: center; gap: 5px;
+      padding: 0 14px; border-right: 1px solid var(--line); white-space: nowrap;
+    }
+    .sp strong { font-size: 13px; font-weight: 700; }
+    .sp span   { font-size: 11px; color: var(--muted); }
+    .sp.g strong { color: var(--green); }
+    .sp.y strong { color: var(--yellow); }
+    .sp.r strong { color: var(--red); }
+
+    /* ── LAYOUT ── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 280px; flex-shrink: 0; display: flex; flex-direction: column;
+      border-right: 1px solid var(--line); background: #fff; overflow: hidden;
+    }
+    .sidebar-top { padding: 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 7px; }
+    .search-input {
+      width: 100%; padding: 6px 9px;
+      border: 1px solid var(--line); border-radius: 6px;
+      font: inherit; font-size: 13px; outline: none;
+    }
+    .search-input:focus { border-color: var(--teal); }
+
+    /* dropdown filter */
+    .filter-select {
+      width: 100%; padding: 6px 8px;
+      border: 1px solid var(--line); border-radius: 6px;
+      font: inherit; font-size: 12px; outline: none;
+      background: #fff; color: var(--ink); cursor: pointer;
+      appearance: auto;
+    }
+    .filter-select:focus { border-color: var(--teal); }
+
+    .code-list { flex: 1; overflow-y: auto; }
+    .code-item {
+      padding: 9px 11px; cursor: pointer;
+      border-bottom: 1px solid #f0f2f5; transition: background .1s;
+    }
+    .code-item:hover { background: #f8fafc; }
+    .code-item.sel { background: var(--blue-soft); border-left: 3px solid var(--blue); padding-left: 8px; }
+
+    .ci-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+    .ci-code {
+      font-size: 11px; font-weight: 700; color: var(--teal);
+      font-family: "Cascadia Code","Fira Code",monospace; word-break: break-all; line-height: 1.3;
+    }
+    .ci-cnt {
+      font-size: 10px; font-weight: 700; color: #fff;
+      background: var(--muted); padding: 1px 6px; border-radius: 10px; white-space: nowrap; flex-shrink: 0;
+    }
+    .ci-name {
+      font-size: 11px; color: var(--muted); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ci-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 0; margin-top: 5px;
+      border: 1px solid var(--line); border-radius: 5px; overflow: hidden;
+    }
+    .cig {
+      text-align: center; padding: 3px 2px;
+      border-right: 1px solid var(--line);
+    }
+    .cig:last-child { border-right: none; }
+    .cig strong { display: block; font-size: 12px; font-weight: 700; }
+    .cig span   { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+    .ci-bar { height: 3px; background: var(--line); border-radius: 2px; margin-top: 5px; }
+    .ci-bar-fill { height: 100%; border-radius: 2px; }
+    .ci-bar-fill.h { background: var(--green); }
+    .ci-bar-fill.m { background: var(--yellow); }
+    .ci-bar-fill.l { background: var(--red); }
+    .pdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--red); margin-right: 3px; vertical-align: middle; }
+
+    /* ── CONTENT ── */
+    .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+    .content-hdr {
+      padding: 10px 16px; border-bottom: 1px solid var(--line); background: #fff;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0;
+    }
+    .ch-l h2 { font-size: 14px; font-weight: 700; font-family: monospace; color: var(--ink); }
+    .ch-l .sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .ch-r { display: flex; gap: 14px; flex-shrink: 0; }
+    .rstat { text-align: right; }
+    .rstat strong { font-size: 13px; font-weight: 700; display: block; }
+    .rstat span   { font-size: 10px; color: var(--muted); }
+
+    /* ── TABLE ── */
+    .table-wrap { flex: 1; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      position: sticky; top: 0; z-index: 10;
+      background: #f4f6f9; padding: 6px 10px;
+      text-align: left; font-size: 11px; font-weight: 600; color: var(--muted);
+      border-bottom: 2px solid var(--line); white-space: nowrap;
+    }
+    th.r, td.r { text-align: right; }
+    th.c, td.c { text-align: center; }
+
+    /* ── CONTRACT GROUP HEADER ── */
+    tr.grp-head { background: #eef2f7; cursor: pointer; }
+    tr.grp-head:hover { background: #e6ecf4; }
+    tr.grp-head td { padding: 0; border-top: 2px solid #c8d3df; }
+    .grp-inner {
+      display: flex; align-items: center; gap: 0;
+      min-height: 38px;
+    }
+    .toggle-btn {
+      flex-shrink: 0; width: 36px; height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--muted);
+      background: none; border: none; cursor: pointer;
+      border-right: 1px solid var(--line);
+    }
+    .toggle-btn:hover { color: var(--teal); }
+    .grp-meta {
+      flex: 1; display: flex; align-items: center; gap: 10px; padding: 6px 10px; flex-wrap: wrap;
+    }
+    .grp-cno { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+    .grp-vendor {
+      font-size: 12px; font-weight: 600; color: var(--teal);
+      background: var(--teal-soft); padding: 2px 8px; border-radius: 20px; white-space: nowrap;
+    }
+    .grp-date {
+      font-size: 12px; font-weight: 700; color: var(--blue);
+      background: var(--blue-soft); padding: 2px 9px; border-radius: 20px; white-space: nowrap;
+    }
+    .grp-bu {
+      font-size: 11px; color: var(--muted);
+      background: #f0f2f5; padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+    }
+    .grp-cnt { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .grp-rates {
+      margin-left: auto; display: flex; align-items: center; gap: 10px;
+      padding: 6px 14px; border-left: 1px solid var(--line); flex-shrink: 0;
+    }
+    .grp-rate-box { text-align: center; }
+    .grp-rate-box strong { display: block; font-size: 12px; font-weight: 700; }
+    .grp-rate-box span   { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+    .grp-rate-box.avg strong { color: var(--teal); font-size: 13px; }
+    .rate-multi-warn { font-size: 10px; color: var(--yellow); }
+
+    /* ── TOOLBAR ── */
+    .table-toolbar {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; background: #fff;
+      border-bottom: 1px solid var(--line); flex-shrink: 0;
+    }
+    .toolbar-label { font-size: 11px; color: var(--muted); margin-right: 2px; }
+    .btn-tool {
+      font: inherit; font-size: 11px; cursor: pointer;
+      padding: 3px 10px; border: 1px solid var(--line); border-radius: 5px;
+      background: #fff; color: var(--ink);
+    }
+    .btn-tool:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-soft); }
+
+    /* ── TREE HEADER ROWS ── */
+    tr.tree-h3 td { background: #eef2f7; padding: 5px 10px 5px 14px; font-size: 11px; font-weight: 700; color: #334155; border-bottom: 1px solid #dce4ee; }
+    tr.tree-h2 td { background: #f4f7fb; padding: 4px 10px 4px 30px; font-size: 11px; font-weight: 600; color: var(--muted); border-bottom: 1px solid #e8edf3; }
+    tr.tree-h1 td { background: #f8fafc; padding: 4px 10px 4px 46px; font-size: 11px; color: var(--muted); border-bottom: 1px solid #edf0f4; font-style: italic; }
+
+    .tree-folder { margin-right: 5px; }
+
+    /* ── ITEM ROWS ── */
+    tr.item-row { border-bottom: 1px solid #f0f3f7; }
+    tr.item-row:hover td { background: #fafcfe; }
+    tbody td { padding: 6px 10px; vertical-align: top; }
+
+    /* indentation for items */
+    .item-row.d0 td:first-child { padding-left: 14px; }
+    .item-row.d1 td:first-child { padding-left: 28px; }
+    .item-row.d2 td:first-child { padding-left: 44px; }
+    .item-row.d3 td:first-child { padding-left: 60px; }
+
+    .item-no { font-size: 10px; color: var(--muted); }
+    .item-desc { font-size: 12px; line-height: 1.45; color: var(--ink); }
+    .item-spec { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+    .item-id { font-size: 10px; color: var(--muted); font-family: monospace; margin-left: 5px; opacity: .65; }
+    .item-rate { font-size: 13px; font-weight: 700; white-space: nowrap; }
+    .item-uom  { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .item-qty  { font-size: 12px; white-space: nowrap; }
+
+    .conf-t { font-size: 11px; font-weight: 600; }
+    .conf-t.h { color: var(--green); }
+    .conf-t.m { color: var(--yellow); }
+    .conf-t.l { color: var(--red); }
+
+    .badge {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 2px 5px; border-radius: 4px; white-space: nowrap;
+    }
+    .badge.approved     { background: var(--green-soft); color: var(--green); }
+    .badge.ai_suggested { background: var(--blue-soft); color: var(--blue); }
+    .badge.pending, .badge.needs_rerun { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+    .badge.ai_error     { background: var(--red-soft); color: var(--red); }
+    .badge.rejected     { background: var(--yellow-soft); color: var(--yellow); }
+
+    .btn-fix {
+      font-size: 11px; padding: 2px 7px;
+      border: 1px solid var(--line); border-radius: 4px;
+      background: #fff; color: var(--muted); cursor: pointer; white-space: nowrap;
+    }
+    .btn-fix:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* ── EMPTY / LOADING ── */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 180px; gap: 8px; color: var(--muted); font-size: 13px;
+    }
+    .empty-icon { font-size: 28px; opacity: .35; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center; z-index: 999;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: #fff; border-radius: 12px; padding: 24px;
+      width: 490px; max-width: 96vw; box-shadow: 0 24px 60px rgba(0,0,0,.2);
+    }
+    .modal h3 { font-size: 15px; margin-bottom: 4px; }
+    .modal-sub { font-size: 11px; color: var(--muted); font-family: monospace; margin-bottom: 12px; }
+    .modal-desc-box {
+      background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+      padding: 7px 10px; font-size: 12px; color: var(--muted);
+      max-height: 80px; overflow-y: auto; line-height: 1.5; margin-bottom: 14px;
+    }
+    .modal label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 3px; margin-top: 12px; }
+    .modal input, .modal select {
+      width: 100%; padding: 7px 9px; border: 1px solid var(--line);
+      border-radius: 6px; font: inherit; font-size: 13px; outline: none;
+    }
+    .modal input:focus, .modal select:focus { border-color: var(--teal); }
+    .quick-codes { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .qc {
+      font-size: 10px; padding: 2px 7px; border-radius: 4px;
+      border: 1px solid var(--line); background: var(--bg);
+      cursor: pointer; font-family: monospace; color: var(--teal);
+    }
+    .qc:hover { background: var(--blue-soft); border-color: var(--blue); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+    .btn { font: inherit; cursor: pointer; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; border: none; }
+    .btn-p { background: var(--teal); color: #fff; }
+    .btn-p:hover { background: #005d66; }
+    .btn-d { background: var(--red-soft); color: var(--red); border: 1px solid #f5b8b8; }
+    .btn-d:hover { background: #fbd5d5; }
+    .btn-g { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+    .btn-g:hover { color: var(--ink); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topbar">
+  <div class="topbar-left">
+    <div class="brand-mark">NA</div>
+    <h1>Piling Trade Code Library</h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="spinner" class="spinner" style="display:none"></span>
+    <div class="nav-links">
+      <a href="/bq-analyzer" class="nav-link">✨ BQ Analyzer</a>
+      <a href="/prompt-guide" class="nav-link">📖 Prompt Guide</a>
+      <a href="/" class="nav-link">← Cost Advisor</a>
+    </div>
+  </div>
+</nav>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="sp"><strong id="stCodes">—</strong><span>trade codes</span></div>
+  <div class="sp"><strong id="stItems">—</strong><span>BQ items</span></div>
+  <div class="sp"><strong id="stContracts">—</strong><span>contracts</span></div>
+  <div class="sp g"><strong id="stApproved">—</strong><span>approved</span></div>
+  <div class="sp y"><strong id="stAI">—</strong><span>AI suggested</span></div>
+  <div class="sp r"><strong id="stProblems">—</strong><span>needs review</span></div>
+  <div class="sp"><strong id="stConf">—</strong><span>avg confidence</span></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <input class="search-input" id="searchInput" placeholder="Search trade codes…" autocomplete="off">
+
+      <select id="activitySelect" class="filter-select">
+        <option value="">All Types — show everything</option>
+        <optgroup label="── Installation ──────────────────────────">
+          <option value="SUPPLY">SUPPLY — Supply &amp; deliver piles to site only (no driving)</option>
+          <option value="DRIVE">DRIVE — Pitch, handle, transport &amp; drive pile to set</option>
+          <option value="JOINT">JOINT — Splice / weld / sleeve joint / pile extension</option>
+          <option value="CUT">CUT — Cut off pile head after driving</option>
+          <option value="CUT-OBSTRUCTION">CUT-OBSTRUCTION — Cut pile head to ground level due to obstruction</option>
+          <option value="REDRIVE">REDRIVE — Re-drive / re-installation of pile</option>
+          <option value="PREBORE">PREBORE — Pre-boring before pile installation</option>
+        </optgroup>
+        <optgroup label="── Load Testing ──────────────────────────">
+          <option value="PDA">PDA — Pile Driving Analysis (dynamic load test)</option>
+          <option value="LOAD-PRELIM">LOAD-PRELIM — Preliminary static load test</option>
+          <option value="LOAD-SUBSEQ">LOAD-SUBSEQ — Subsequent static load test</option>
+          <option value="LOAD-MAINT">LOAD-MAINT — Maintained / static load test</option>
+          <option value="LOAD">LOAD — Static load test (sequence unspecified)</option>
+        </optgroup>
+        <optgroup label="── General ───────────────────────────────">
+          <option value="GEN">GEN — General items (survey, records, mob, obstruction)</option>
+          <option value="SURVEY">SURVEY — Setting out / as-built survey</option>
+          <option value="RECORD">RECORD — Piling records / driving records / blow count</option>
+          <option value="EQUIP-MOB">EQUIP-MOB — Mobilisation / demobilisation of piling rig</option>
+          <option value="OBSTRUCTION">OBSTRUCTION — Underground obstruction removal</option>
+        </optgroup>
+        <optgroup label="── Pile Type ─────────────────────────────">
+          <option value="BORED">BORED — Bored pile works</option>
+          <option value="SPUN">SPUN — Spun concrete pile</option>
+          <option value="PRC">PRC — Precast / prestressed reinforced concrete pile</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="code-list" id="codeList">
+      <div class="empty-state"><span class="spinner"></span></div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="content-hdr">
+      <div class="ch-l">
+        <h2 id="hdrCode" style="color:var(--muted)">Select a trade code</h2>
+        <div class="sub" id="hdrName">Click any code on the left — contracts are shown collapsed, click to expand</div>
+      </div>
+      <div class="ch-r" id="hdrStats" style="display:none">
+        <div class="rstat"><strong id="sAvg">—</strong><span>avg rate</span></div>
+        <div class="rstat"><strong id="sMin">—</strong><span>min rate</span></div>
+        <div class="rstat"><strong id="sMax">—</strong><span>max rate</span></div>
+        <div class="rstat"><strong id="sRates">—</strong><span>distinct rates</span></div>
+        <div class="rstat"><strong id="sCtracts">—</strong><span>contracts</span></div>
+        <div class="rstat"><strong id="sItems">—</strong><span>items</span></div>
+      </div>
+    </div>
+
+    <div class="table-toolbar hidden" id="tableToolbar">
+      <span class="toolbar-label">Contracts:</span>
+      <button class="btn-tool" id="btnExpandAll">▼ Expand All</button>
+      <button class="btn-tool" id="btnCollapseAll">▶ Collapse All</button>
+    </div>
+
+    <div class="table-wrap" id="tableWrap">
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <span>Select a trade code to compare rates across contracts</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <h3>Fix Trade Code</h3>
+    <div class="modal-sub" id="modalSub"></div>
+    <div class="modal-desc-box" id="modalDesc"></div>
+
+    <label>New Trade Code</label>
+    <input id="mCode" placeholder="e.g. PIL-PRC-125X125-DRIVE" autocomplete="off" spellcheck="false">
+    <div class="quick-codes" id="qcList"></div>
+
+    <label>Trade Name <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+    <input id="mName" placeholder="e.g. Drive 125×125 pile">
+
+    <label>Review Status</label>
+    <select id="mStatus">
+      <option value="approved">Approved ✓</option>
+      <option value="rejected">Rejected ✗</option>
+      <option value="needs_rerun">Needs Re-run</option>
+      <option value="ai_suggested">AI Suggested</option>
+    </select>
+
+    <div class="modal-actions">
+      <button class="btn btn-g" id="mCancel">Cancel</button>
+      <button class="btn btn-d" id="mReject">Mark Rejected</button>
+      <button class="btn btn-p" id="mSave">Save Fix</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── STATE ─────────────────────────────────────────────────────────── */
+let allCodes    = [];
+let currentCode = null;
+let currentItems= [];
+let filterTxt   = '';
+let filterAct   = '';
+let fixRow      = null;
+
+/* ── INIT ──────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  loadStats();
+  loadCodes();
+
+  document.getElementById('searchInput').addEventListener('input', e => {
+    filterTxt = e.target.value.trim();
+    debounce(loadCodes, 350)();
+  });
+
+  document.getElementById('activitySelect').addEventListener('change', e => {
+    filterAct = e.target.value;
+    renderCodeList();
+  });
+
+  setupModal();
+
+  document.getElementById('btnExpandAll').addEventListener('click', () => {
+    document.querySelectorAll('.grp-row').forEach(r => r.style.display = '');
+    document.querySelectorAll('.toggle-btn').forEach(b => b.textContent = '▼');
+  });
+  document.getElementById('btnCollapseAll').addEventListener('click', () => {
+    document.querySelectorAll('.grp-row').forEach(r => r.style.display = 'none');
+    document.querySelectorAll('.toggle-btn').forEach(b => b.textContent = '▶');
+  });
+});
+
+/* ── STATS ─────────────────────────────────────────────────────────── */
+async function loadStats() {
+  try {
+    const d = await api('/api/trade-codes/stats');
+    $t('stCodes',   fmt(d.total_codes));
+    $t('stItems',   fmt(d.total_items));
+    $t('stContracts', fmt(d.total_contracts));
+    $t('stApproved', fmt(d.approved));
+    $t('stAI',      fmt(d.ai_suggested));
+    $t('stProblems', fmt(d.problems));
+    $t('stConf',    d.avg_confidence_pct != null ? d.avg_confidence_pct + '%' : '—');
+  } catch(e) { console.error(e); }
+}
+
+/* ── CODE LIST ─────────────────────────────────────────────────────── */
+async function loadCodes() {
+  spin(true);
+  try {
+    const p = filterTxt ? '?search=' + encodeURIComponent(filterTxt) : '';
+    const d = await api('/api/trade-codes' + p);
+    allCodes = d.rows || [];
+    renderCodeList();
+  } catch(e) {
+    document.getElementById('codeList').innerHTML =
+      '<div class="empty-state" style="color:var(--red)">Failed to load</div>';
+  } finally { spin(false); }
+}
+
+function renderCodeList() {
+  const el = document.getElementById('codeList');
+  let codes = allCodes;
+  if (filterAct) codes = codes.filter(c => c.trade_code.includes(filterAct));
+  if (!codes.length) { el.innerHTML = '<div class="empty-state">No results</div>'; return; }
+
+  el.innerHTML = codes.map(c => {
+    const conf = parseFloat(c.avg_confidence) || 0;
+    const cls  = conf >= .9 ? 'h' : conf >= .7 ? 'm' : 'l';
+    const pct  = Math.round(conf * 100);
+    const prob = (c.problem_count || 0) > 0;
+    const sel  = currentCode === c.trade_code ? ' sel' : '';
+    return `
+<div class="code-item${sel}" data-code="${x(c.trade_code)}">
+  <div class="ci-top">
+    <span class="ci-code">${prob ? '<span class="pdot"></span>' : ''}${x(c.trade_code)}</span>
+    <span class="ci-cnt">${fmt(c.item_count)}</span>
+  </div>
+  <div class="ci-name" title="${x(c.trade_name)}">${x(c.trade_name) || '<em style="opacity:.4">no name</em>'}</div>
+  <div class="ci-grid">
+    <div class="cig"><strong>${fmt(c.item_count)}</strong><span>Items</span></div>
+    <div class="cig"><strong>${fmt(c.contract_count)}</strong><span>Contracts</span></div>
+    <div class="cig"><strong>${c.rate_count != null ? c.rate_count : '—'}</strong><span>Rates</span></div>
+  </div>
+  <div class="ci-bar"><div class="ci-bar-fill ${cls}" style="width:${pct}%"></div></div>
+</div>`;
+  }).join('');
+
+  el.querySelectorAll('.code-item').forEach(el =>
+    el.addEventListener('click', () => selectCode(el.dataset.code))
+  );
+}
+
+/* ── SELECT CODE ───────────────────────────────────────────────────── */
+async function selectCode(code) {
+  currentCode = code;
+  renderCodeList();
+
+  const m = allCodes.find(c => c.trade_code === code) || {};
+  document.getElementById('hdrCode').textContent = code;
+  document.getElementById('hdrCode').style.color = '';
+  document.getElementById('hdrName').textContent = m.trade_name || '';
+  document.getElementById('hdrStats').style.display = 'flex';
+  $t('sCtracts', fmt(m.contract_count));
+  $t('sItems',   fmt(m.item_count));
+  $t('sRates',   fmt(m.rate_count));
+  $t('sAvg',     fmtR(m.avg_rate));
+  $t('sMin',     fmtR(m.min_rate));
+  $t('sMax',     fmtR(m.max_rate));
+
+  document.getElementById('tableWrap').innerHTML =
+    '<div class="empty-state"><span class="spinner"></span></div>';
+
+  try {
+    const d = await api(`/api/trade-codes/${encodeURIComponent(code)}/items`);
+    currentItems = d.rows || [];
+    renderTable(currentItems);
+    document.getElementById('tableToolbar').classList.remove('hidden');
+  } catch(e) {
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty-state" style="color:var(--red)">Failed to load</div>';
+  }
+}
+
+/* ── RENDER TABLE (grouped by contract, collapsible, tree inside) ─── */
+function renderTable(rows) {
+  const wrap = document.getElementById('tableWrap');
+  if (!rows.length) { wrap.innerHTML = '<div class="empty-state">No items</div>'; return; }
+
+  // Group by contract
+  const groups = new Map();
+  for (const r of rows) {
+    const k = r.contract_no || 'Unknown';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+
+  // Sort groups by awarded_date DESC (newest contract first)
+  const sorted = [...groups.entries()].sort((a, b) => {
+    const da = new Date(a[1][0].awarded_date || 0);
+    const db = new Date(b[1][0].awarded_date || 0);
+    return db - da;
+  });
+
+  let html = `<table>
+<thead><tr>
+  <th style="width:36px"></th>
+  <th>BQ Description</th>
+  <th style="width:52px">UOM</th>
+  <th style="width:76px" class="r">Qty</th>
+  <th style="width:112px" class="r">Unit Rate</th>
+  <th style="width:50px" class="c">Conf</th>
+  <th style="width:85px">Status</th>
+  <th style="width:44px"></th>
+</tr></thead><tbody>`;
+
+  sorted.forEach(([contractNo, cRows], gi) => {
+    const gk   = `g${gi}`;
+    const first = cRows[0];
+    const rates  = cRows.map(r => parseFloat(r.unit_rate)).filter(v => v > 0);
+    const minR   = rates.length ? Math.min(...rates) : null;
+    const maxR   = rates.length ? Math.max(...rates) : null;
+    const avgR   = rates.length ? rates.reduce((s,v)=>s+v,0)/rates.length : null;
+    const distR  = new Set(rates.map(v => v.toFixed(2))).size;
+    const aDate  = fmtDate(first.awarded_date);
+
+    // Contract header row (always visible)
+    html += `<tr class="grp-head" data-gk="${gk}">
+  <td colspan="8">
+    <div class="grp-inner">
+      <button class="toggle-btn" data-gk="${gk}">▶</button>
+      <div class="grp-meta">
+        <span class="grp-cno">${x(contractNo)}</span>
+        <span class="grp-vendor">${x(first.contractor_name || '—')}</span>
+        <span class="grp-date">📅 ${aDate}</span>
+        ${first.business_unit ? `<span class="grp-bu">${x(first.business_unit)}</span>` : ''}
+        <span class="grp-cnt">${cRows.length} item${cRows.length!==1?'s':''}</span>
+        ${distR > 1 ? `<span class="rate-multi-warn">⚠ ${distR} diff rates</span>` : ''}
+      </div>
+      <div class="grp-rates">
+        <div class="grp-rate-box"><strong>${fmtR(minR)}</strong><span>Min</span></div>
+        <div class="grp-rate-box avg"><strong>${fmtR(avgR)}</strong><span>Avg</span></div>
+        <div class="grp-rate-box"><strong>${fmtR(maxR)}</strong><span>Max</span></div>
+      </div>
+    </div>
+  </td>
+</tr>`;
+
+    // Tree rows (hidden by default)
+    html += buildTree(cRows, gk);
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+
+  // Wire toggle buttons
+  wrap.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); toggleGroup(btn.dataset.gk); });
+  });
+  // Click on row header also toggles
+  wrap.querySelectorAll('tr.grp-head').forEach(row => {
+    row.addEventListener('click', () => toggleGroup(row.dataset.gk));
+  });
+
+  // Wire fix buttons
+  wrap.querySelectorAll('.btn-fix').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const r = currentItems.find(r => r.id === +btn.dataset.id);
+      if (r) openFix(r);
+    });
+  });
+}
+
+function toggleGroup(gk) {
+  const rows = document.querySelectorAll(`[data-gk="${gk}"].grp-row`);
+  const btn  = document.querySelector(`.toggle-btn[data-gk="${gk}"]`);
+  const open = btn.textContent.trim() === '▼';
+  rows.forEach(r => r.style.display = open ? 'none' : '');
+  btn.textContent = open ? '▶' : '▼';
+}
+
+/* ── BUILD TREE ────────────────────────────────────────────────────── */
+function buildTree(rows, gk) {
+  // Sort within contract by h3→h2→h1→item_ref_no
+  const sorted = [...rows].sort((a, b) =>
+    cmpStr(a.parent_header_3, b.parent_header_3) ||
+    cmpStr(a.parent_header_2, b.parent_header_2) ||
+    cmpStr(a.parent_header_1, b.parent_header_1) ||
+    ((a.item_ref_no || 0) - (b.item_ref_no || 0))
+  );
+
+  let html = '';
+  let lastH3, lastH2, lastH1;
+  let seq = 0;
+
+  for (const row of sorted) {
+    const h3 = row.parent_header_3 || null;
+    const h2 = row.parent_header_2 || null;
+    const h1 = row.parent_header_1 || null;
+
+    if (h3 !== lastH3) {
+      lastH3 = h3; lastH2 = null; lastH1 = null;
+      if (h3) html += hdrRow('tree-h3', '📁', h3, gk);
+    }
+    if (h2 !== lastH2) {
+      lastH2 = h2; lastH1 = null;
+      if (h2) html += hdrRow('tree-h2', '└─', h2, gk);
+    }
+    if (h1 !== lastH1) {
+      lastH1 = h1;
+      if (h1) html += hdrRow('tree-h1', '└─', h1, gk);
+    }
+
+    const depth = (h3 ? 1 : 0) + (h2 ? 1 : 0) + (h1 ? 1 : 0);
+    seq++;
+    html += itemRow(row, gk, depth, seq);
+  }
+
+  return html;
+}
+
+function hdrRow(cls, icon, label, gk) {
+  return `<tr class="${cls} grp-row" data-gk="${gk}" style="display:none">
+  <td colspan="8"><span class="tree-folder">${icon}</span>${x(label)}</td>
+</tr>`;
+}
+
+function itemRow(row, gk, depth, seq) {
+  const conf   = parseFloat(row.confidence);
+  const ccls   = conf >= .9 ? 'h' : conf >= .7 ? 'm' : 'l';
+  const ctxt   = isNaN(conf) ? '—' : Math.round(conf * 100) + '%';
+  const status = row.review_status || 'pending';
+
+  // Main desc: bq_item_description (concise).
+  // Spec detail: full_bq_description stripped of bq_item_description prefix.
+  const desc     = row.bq_item_description || row.full_bq_description || '—';
+  const fullDesc = row.full_bq_description || '';
+  // Show spec as additional line only if full_bq_description has meaningful extra info
+  const specExtra = fullDesc && fullDesc.length > desc.length + 10
+    ? stripPrefix(fullDesc, desc)
+    : '';
+
+  return `<tr class="item-row d${Math.min(depth,3)} grp-row" data-gk="${gk}" style="display:none" data-id="${row.id}">
+  <td class="r item-no">${seq}</td>
+  <td>
+    <div class="item-desc" title="${x(fullDesc || desc)}">${x(desc)}<span class="item-id">[${row.id}]</span></div>
+    ${specExtra ? `<div class="item-spec">${x(specExtra.slice(0, 200))}</div>` : ''}
+  </td>
+  <td class="item-uom">${x(row.uom_code || '—')}</td>
+  <td class="r item-qty">${fmtQ(row.quantity)}</td>
+  <td class="r item-rate">${fmtR(row.unit_rate)}</td>
+  <td class="c conf-t ${ccls}">${ctxt}</td>
+  <td><span class="badge ${status}">${stLabel(status)}</span></td>
+  <td><button class="btn-fix" data-id="${row.id}">Fix</button></td>
+</tr>`;
+}
+
+/* Strip the desc prefix from fullDesc to extract spec detail */
+function stripPrefix(full, desc) {
+  const clean = desc.trim().toLowerCase();
+  const idx = full.toLowerCase().indexOf(clean);
+  if (idx < 0) return full.trim();
+  const after = full.slice(idx + desc.length).trim();
+  return after.startsWith('.') || after.startsWith(',') ? after.slice(1).trim() : after;
+}
+
+/* ── FIX MODAL ─────────────────────────────────────────────────────── */
+function openFix(row) {
+  fixRow = row;
+  const desc = row.full_bq_description || row.bq_item_description || '—';
+  $t('modalSub', `#${row.id}  ${row.contract_no||''}  ${row.bq_item_no||''}`);
+  document.getElementById('modalDesc').textContent = desc;
+  document.getElementById('mCode').value   = row.suggested_trade_code || '';
+  document.getElementById('mName').value   = row.suggested_trade_name || '';
+  document.getElementById('mStatus').value = row.review_status || 'approved';
+  buildQC(desc);
+  document.getElementById('modalOverlay').classList.remove('hidden');
+  document.getElementById('mCode').focus();
+}
+
+function buildQC(desc) {
+  const t = desc.toLowerCase();
+  const sm = t.match(/(\d{3,4})\s*mm\s*[x×]\s*(\d{3,4})\s*mm/)
+           || t.match(/(\d{3,4})\s*[x×]\s*(\d{3,4})/);
+  const sz = sm ? `${sm[1]}X${sm[2]}` : null;
+  const ty = t.includes('spun') ? 'SPUN' : t.includes('bored') ? 'BORED' : 'PRC';
+  const acts = ['SUPPLY','DRIVE','CUT','CUT-OBSTRUCTION','JOINT','PDA','LOAD-PRELIM','LOAD-SUBSEQ','LOAD-MAINT','LOAD'];
+  const sugg = [];
+  if (sz) acts.forEach(a => sugg.push(`PIL-${ty}-${sz}-${a}`));
+  ['PIL-GEN-GEN-SURVEY','PIL-GEN-GEN-RECORD','PIL-GEN-GEN-EQUIP-MOB','PIL-GEN-GEN-OBSTRUCTION']
+    .forEach(s => sugg.push(s));
+
+  const el = document.getElementById('qcList');
+  el.innerHTML = sugg.slice(0,12).map(s => `<button class="qc">${x(s)}</button>`).join('');
+  el.querySelectorAll('.qc').forEach(b =>
+    b.addEventListener('click', () => document.getElementById('mCode').value = b.textContent.trim())
+  );
+}
+
+function setupModal() {
+  document.getElementById('mCancel').addEventListener('click', closeModal);
+  document.getElementById('modalOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  document.getElementById('mSave').addEventListener('click', () => saveFix());
+  document.getElementById('mReject').addEventListener('click', () => saveFix('rejected'));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
+  fixRow = null;
+}
+
+async function saveFix(forceStatus) {
+  if (!fixRow) return;
+  const code   = document.getElementById('mCode').value.trim().toUpperCase();
+  const name   = document.getElementById('mName').value.trim();
+  const status = forceStatus || document.getElementById('mStatus').value;
+  if (!code) { document.getElementById('mCode').focus(); return; }
+
+  spin(true);
+  try {
+    const r = await api(`/api/trade-codes/${fixRow.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade_code: code, trade_name: name, review_status: status }),
+    });
+    if (r.success) {
+      Object.assign(fixRow, { suggested_trade_code: code, suggested_trade_name: name, review_status: status });
+      renderTable(currentItems);
+      closeModal();
+      loadCodes();
+      loadStats();
+    }
+  } catch(e) { alert('Save failed: ' + e.message); }
+  finally    { spin(false); }
+}
+
+/* ── UTILS ─────────────────────────────────────────────────────────── */
+const _debounceMap = {};
+function debounce(fn, ms) {
+  return (...args) => {
+    clearTimeout(_debounceMap[fn]);
+    _debounceMap[fn] = setTimeout(() => fn(...args), ms);
+  };
+}
+
+async function api(url, opts = {}) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+function spin(on) { document.getElementById('spinner').style.display = on ? 'block' : 'none'; }
+function $t(id, v) { const e = document.getElementById(id); if (e) e.textContent = v; }
+
+function fmt(n) {
+  if (n == null || n === '') return '—';
+  return Number(n).toLocaleString();
+}
+
+function fmtR(n) {
+  const v = parseFloat(n);
+  if (!v || isNaN(v)) return '—';
+  return 'RM ' + v.toLocaleString('en-MY', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtQ(n) {
+  const v = parseFloat(n);
+  if (!v || isNaN(v)) return '—';
+  return v.toLocaleString('en-MY', {minimumFractionDigits:0, maximumFractionDigits:2});
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
+  } catch { return String(d).slice(0,10); }
+}
+
+function x(s) {
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function cmpStr(a, b) { return (a||'').localeCompare(b||''); }
+function avgRate(rows) {
+  const v = rows.map(r=>parseFloat(r.unit_rate)).filter(v=>v>0);
+  return v.length ? v.reduce((s,x)=>s+x,0)/v.length : 0;
+}
+
+function stLabel(s) {
+  return {approved:'Approved',ai_suggested:'AI',pending:'Pending',
+          needs_rerun:'Re-run',ai_error:'Error',rejected:'Rejected'}[s]||s;
+}
+</script>
+</body>
+</html>
