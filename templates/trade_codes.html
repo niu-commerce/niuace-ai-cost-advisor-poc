@@ -317,7 +317,7 @@
 <nav class="topbar">
   <div class="topbar-left">
     <div class="brand-mark">NA</div>
-    <h1>Piling Trade Code Library</h1>
+    <h1>Trade Code Library</h1>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
     <span id="spinner" class="spinner" style="display:none"></span>
@@ -425,7 +425,7 @@
     <div class="modal-desc-box" id="modalDesc"></div>
 
     <label>New Trade Code</label>
-    <input id="mCode" placeholder="e.g. PIL-PRC-125X125-DRIVE" autocomplete="off" spellcheck="false">
+    <input id="mCode" placeholder="e.g. PIL-PRC-125X125-DRIVE or INF-WATER-PIPE-150MM-LAY" autocomplete="off" spellcheck="false">
     <div class="quick-codes" id="qcList"></div>
 
     <label>Trade Name <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
@@ -782,6 +782,8 @@ function buildQC(desc) {
   const sugg = [];
   if (sz) acts.forEach(a => sugg.push(`PIL-${ty}-${sz}-${a}`));
   ['PIL-GEN-GEN-SURVEY','PIL-GEN-GEN-RECORD','PIL-GEN-GEN-EQUIP-MOB','PIL-GEN-GEN-OBSTRUCTION']
+    .forEach(s => sugg.push(s));
+  ['INF-WATER-PIPE-150MM-LAY','INF-DRAIN-RC-DRAIN-600MM-CONSTRUCT','INF-SEWER-MANHOLE-CONSTRUCT','INF-ROAD-ASPHALT-LAY','INF-ROAD-ROADBASE-COMPACT','INF-EW-GEN-EXCAVATE']
     .forEach(s => sugg.push(s));
 
   const el = document.getElementById('qcList');

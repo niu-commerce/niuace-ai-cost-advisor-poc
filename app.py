@@ -46,6 +46,7 @@ class BQAnalyzeRequest(BaseModel):
     description: str
     business_unit: str = ""
     uom: str = ""
+    category_of_work: str = "Piling"
 
 
 @app.get("/")
@@ -60,7 +61,7 @@ def prompt_guide_page():
 
 @app.get("/api/prompt-config")
 def api_prompt_config():
-    from trade_code_worker import SYSTEM_PROMPT, active_system_prompt
+    from trade_code_worker import SYSTEM_PROMPT, INFRASTRUCTURE_SYSTEM_PROMPT, active_system_prompt
     rules_file = os.getenv("TRADE_CODE_PROMPT_RULES_FILE", "prompt_tuning_rules.txt")
     tuning_rules = ""
     try:
@@ -71,6 +72,7 @@ def api_prompt_config():
         pass
     return {
         "system_prompt": SYSTEM_PROMPT,
+        "infrastructure_system_prompt": INFRASTRUCTURE_SYSTEM_PROMPT,
         "active_prompt": active_system_prompt(),
         "tuning_rules": tuning_rules,
         "rules_file": rules_file,
@@ -160,7 +162,7 @@ def api_business_units():
 
 @app.post("/api/analyze-bq")
 def api_analyze_bq(payload: BQAnalyzeRequest):
-    from trade_code_worker import suggest_trade_codes, apply_canonical_overrides, default_model
+    from trade_code_worker import suggest_trade_codes, apply_canonical_overrides, default_model, prompt_version_for_category
 
     provider = os.getenv("AI_PROVIDER", "mock").lower().strip()
     model = default_model(provider)
@@ -173,7 +175,7 @@ def api_analyze_bq(payload: BQAnalyzeRequest):
         "project_shortname": "",
         "awarded_date": None,
         "contractor_name": "",
-        "category_of_work": "",
+        "category_of_work": payload.category_of_work or "Piling",
         "letter_award_tab_id": None,
         "tab_name": "",
         "bq_item_id": None,
@@ -192,7 +194,8 @@ def api_analyze_bq(payload: BQAnalyzeRequest):
     }
 
     try:
-        suggestions = suggest_trade_codes(provider, model, [fake_row], "piling-v1")
+        prompt_version = prompt_version_for_category(fake_row["category_of_work"])
+        suggestions = suggest_trade_codes(provider, model, [fake_row], prompt_version)
         suggestion = suggestions[0] if suggestions else {}
         suggestion = apply_canonical_overrides(fake_row, suggestion)
     except Exception as exc:

@@ -77,19 +77,97 @@ Important:
 - Do not skip minor, provisional, lump sum, survey, equipment, record, obstruction, or attendance items.
 """.strip()
 
+INFRASTRUCTURE_SYSTEM_PROMPT = """
+You are classifying EcoWorld Infrastructure Works contract BQ items into reusable trade codes.
 
-def active_system_prompt() -> str:
+Goal:
+- Same work scope, same asset/system, same specification, same measurement basis, and same UOM should receive the same trade code.
+- Different infrastructure system, asset type, work activity, material/specification, or UOM should receive a different trade code.
+- The trade code will later be used to compare unit rates across contracts.
+
+Rules:
+- Use concise uppercase trade codes using this format:
+  INF-{SYSTEM}-{ASSET}-{ACTIVITY}
+- SYSTEM must be one of: GEN, EW, ROAD, DRAIN, SEWER, WATER, ELEC, TELCO, LIGHT, LAND, STRUCT.
+- ASSET must be GEN for general items, otherwise use a normalized asset/spec key like PIPE-150MM, RC-DRAIN-600MM, MANHOLE, ROADBASE, ASPHALT, KERB, CULVERT, TRENCH, CHAMBER, POLE.
+- ACTIVITY must be one of: SURVEY, MOB, CLEAR, EXCAVATE, FILL, COMPACT, DISPOSE, SUPPLY, INSTALL, LAY, TEST, CONNECT, CONSTRUCT, REINSTATE, PROTECT, MARKING, OTHER.
+- Separate supply, installation/laying, excavation, backfilling, compaction, testing, connection, reinstatement, disposal, protection, and other distinct work.
+- Keep road, drainage, sewerage, water reticulation, electrical, telecom, street lighting, earthwork, landscape, and general infrastructure scopes separate.
+- Do not invent rates or quantities.
+- Return JSON only. No markdown.
+- Preferred top-level shape is a JSON array.
+- If the provider requires a JSON object, return { "suggestions": [ ... ] }.
+
+Classification priority:
+- If text says road base, crusher run, sub-base, premix, asphalt, wearing course, binder course, kerb, road marking, classify as ROAD.
+- If text says drain, culvert, sump, catchpit, swale, U-drain, V-drain, RC drain, classify as DRAIN.
+- If text says sewer, sewerage, manhole, inspection chamber, septic, classify as SEWER.
+- If text says water main, water reticulation, HDPE, MSCL, DI pipe, valve, hydrant, classify as WATER.
+- If text says TNB, electrical duct, cable trench, substation external ducting, classify as ELEC.
+- If text says telecom, fibre, communication duct, classify as TELCO.
+- If text says street lighting, lamp pole, feeder pillar, classify as LIGHT.
+- If text says turfing, planting, landscape, hydroseeding, classify as LAND.
+- If text says clearing, grubbing, excavation, cut, fill, backfill, compaction, disposal, classify as EW unless a more specific system is clearly stated.
+- Use GEN only for general preliminaries, survey, mobilisation, traffic management, temporary works, or items that span multiple systems.
+
+Examples:
+- Supply and lay 150mm HDPE water pipe => INF-WATER-PIPE-150MM-LAY
+- Pressure test water main => INF-WATER-PIPE-GEN-TEST
+- Construct 600mm wide precast RC U-drain => INF-DRAIN-RC-DRAIN-600MM-CONSTRUCT
+- Excavate trench for sewer pipe => INF-SEWER-TRENCH-EXCAVATE
+- Construct sewer manhole => INF-SEWER-MANHOLE-CONSTRUCT
+- Supply and lay asphaltic concrete wearing course => INF-ROAD-ASPHALT-LAY
+- Crusher run road base compacted in layers => INF-ROAD-ROADBASE-COMPACT
+- Road line marking => INF-ROAD-MARKING-MARKING
+- Street lighting pole installation => INF-LIGHT-POLE-INSTALL
+- Site clearing and grubbing => INF-EW-GEN-CLEAR
+
+For each input item, return:
+- id: source staging table id
+- suggested_trade_code
+- suggested_trade_name
+- spec_key
+- confidence: number from 0 to 1
+- reasoning: short reason for the classification
+
+Important:
+- Return exactly one result for every input item id.
+- Do not skip minor, provisional, lump sum, survey, testing, connection, reinstatement, or attendance items.
+""".strip()
+
+
+def active_system_prompt(prompt_version: str = "piling-v1", category_of_work: str | None = None) -> str:
+    base_prompt = resolve_system_prompt(prompt_version, category_of_work)
+    if is_infrastructure_category(category_of_work) or prompt_version.startswith("infra"):
+        return base_prompt
+
     rules_path = os.getenv("TRADE_CODE_PROMPT_RULES_FILE", "prompt_tuning_rules.txt")
     if not rules_path or not os.path.exists(rules_path):
-        return SYSTEM_PROMPT
+        return base_prompt
 
     with open(rules_path, "r", encoding="utf-8") as rules_file:
         extra_rules = rules_file.read().strip()
 
     if not extra_rules:
-        return SYSTEM_PROMPT
+        return base_prompt
 
-    return f"{SYSTEM_PROMPT}\n\nAdditional audit-derived rules:\n{extra_rules}"
+    return f"{base_prompt}\n\nAdditional audit-derived rules:\n{extra_rules}"
+
+
+def resolve_system_prompt(prompt_version: str = "piling-v1", category_of_work: str | None = None) -> str:
+    if is_infrastructure_category(category_of_work) or prompt_version.startswith("infra"):
+        return INFRASTRUCTURE_SYSTEM_PROMPT
+    return SYSTEM_PROMPT
+
+
+def prompt_version_for_category(category_of_work: str | None) -> str:
+    if is_infrastructure_category(category_of_work):
+        return "infrastructure-v1"
+    return "piling-v1"
+
+
+def is_infrastructure_category(category_of_work: str | None) -> bool:
+    return "infrastructure" in (category_of_work or "").lower()
 
 
 def main() -> None:
@@ -104,9 +182,25 @@ def main() -> None:
     if not mysql_enabled():
         raise SystemExit("MYSQL_ENABLED must be true in .env before reading ai_bq_trade_code_suggestions.")
 
+    if args.list_categories:
+        list_categories()
+        return
+    if args.list_source_categories:
+        list_source_categories()
+        return
+    if args.load_source_category:
+        load_source_category(
+            category_of_work=args.load_source_category,
+            company_id=args.company_id,
+            limit=args.limit,
+            dry_run=args.dry_run,
+        )
+        return
+
     provider = args.provider or os.getenv("AI_PROVIDER", "mock").lower().strip()
     model = args.model or default_model(provider)
     run_id = args.run_id or f"trade-code-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}"
+    args.prompt_version = args.prompt_version or prompt_version_for_category(args.category_of_work)
 
     log(
         "worker_start",
@@ -135,6 +229,7 @@ def main() -> None:
             ids=parse_ids(args.ids),
             include_processed=args.include_processed,
             exclude_run_id=exclude_run_id,
+            category_of_work=args.category_of_work,
         )
         log("fetch_rows_done", rows=len(rows), elapsed_seconds=elapsed(fetch_started_at))
         if not rows:
@@ -248,14 +343,25 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Suggest piling BQ trade codes using OpenAI or Claude.")
+    parser = argparse.ArgumentParser(description="Suggest BQ trade codes using OpenAI or Claude.")
     parser.add_argument("--provider", choices=["openai", "claude", "mock"], help="AI provider. Defaults to AI_PROVIDER.")
     parser.add_argument("--model", help="Model override. Defaults to OPENAI_MODEL or CLAUDE_MODEL.")
     parser.add_argument("--limit", type=int, default=50, help="Rows to load per loop.")
     parser.add_argument("--batch-size", type=int, default=10, help="Rows per AI request.")
+    parser.add_argument(
+        "--company-id",
+        type=int,
+        default=int(os.getenv("MYSQL_DEFAULT_COMPANY_ID", "1452")),
+        help="Company id for source category loading/diagnostics.",
+    )
     parser.add_argument("--ids", help="Comma-separated ai_bq_trade_code_suggestions.id values to process.")
     parser.add_argument("--include-processed", action="store_true", help="Also process rows that already have a trade code.")
-    parser.add_argument("--prompt-version", default="piling-v1", help="Prompt version stored back to DB.")
+    parser.add_argument("--prompt-version", default="", help="Prompt version stored back to DB. Defaults from category.")
+    parser.add_argument(
+        "--category-of-work",
+        default=os.getenv("TRADE_CODE_CATEGORY", ""),
+        help='Optional category filter, e.g. "Piling" or "Infrastructure Works".',
+    )
     parser.add_argument("--run-id", help="Run id stored back to DB.")
     parser.add_argument("--sleep-seconds", type=float, default=0.2, help="Delay between AI requests.")
     parser.add_argument("--dry-run", action="store_true", help="Print suggestions without updating DB.")
@@ -263,6 +369,20 @@ def parse_args() -> argparse.Namespace:
         "--history-only",
         action="store_true",
         help="Insert into ai_bq_trade_code_suggestion_results without updating latest columns on the source table.",
+    )
+    parser.add_argument(
+        "--list-categories",
+        action="store_true",
+        help="Print category_of_work counts from ai_bq_trade_code_suggestions and exit.",
+    )
+    parser.add_argument(
+        "--list-source-categories",
+        action="store_true",
+        help="Print category_of_work counts from awarded Contract BQ source tables and exit.",
+    )
+    parser.add_argument(
+        "--load-source-category",
+        help='Load awarded Contract BQ rows for this category into ai_bq_trade_code_suggestions, e.g. "Infrastructure Works".',
     )
     return parser.parse_args()
 
@@ -286,6 +406,7 @@ def fetch_rows(
     ids: List[int],
     include_processed: bool,
     exclude_run_id: str | None = None,
+    category_of_work: str | None = None,
 ) -> List[Dict[str, Any]]:
     id_filter = ""
     params: List[Any] = []
@@ -293,6 +414,18 @@ def fetch_rows(
         placeholders = ", ".join(["%s"] * len(ids))
         id_filter = f"AND id IN ({placeholders})"
         params.extend(ids)
+
+    category_filter = ""
+    if category_of_work:
+        if is_infrastructure_category(category_of_work):
+            category_filter = "AND LOWER(category_of_work) LIKE %s"
+            params.append("%infrastructure%")
+        elif "piling" in category_of_work.lower():
+            category_filter = "AND LOWER(category_of_work) LIKE %s"
+            params.append("%piling%")
+        else:
+            category_filter = "AND category_of_work = %s"
+            params.append(category_of_work)
 
     processed_filter = ""
     if not include_processed:
@@ -346,6 +479,7 @@ def fetch_rows(
         FROM max_purchasing.ai_bq_trade_code_suggestions src
         WHERE 1 = 1
           {id_filter}
+          {category_filter}
           {processed_filter}
           {exclude_existing_result_filter}
         ORDER BY letter_award_id, letter_award_tab_id, item_ref_no, id
@@ -359,31 +493,258 @@ def fetch_rows(
             return cursor.fetchall()
 
 
+def list_categories() -> None:
+    sql = """
+        SELECT
+            COALESCE(NULLIF(category_of_work, ''), '(blank)') AS category_of_work,
+            COALESCE(NULLIF(review_status, ''), '(blank)') AS review_status,
+            COUNT(*) AS row_count,
+            SUM(CASE
+                WHEN suggested_trade_code IS NULL OR suggested_trade_code = ''
+                THEN 1 ELSE 0
+            END) AS without_trade_code
+        FROM max_purchasing.ai_bq_trade_code_suggestions
+        GROUP BY
+            COALESCE(NULLIF(category_of_work, ''), '(blank)'),
+            COALESCE(NULLIF(review_status, ''), '(blank)')
+        ORDER BY category_of_work, review_status
+    """
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+
+    if not rows:
+        print("No rows found in max_purchasing.ai_bq_trade_code_suggestions.")
+        return
+
+    print("category_of_work\treview_status\trow_count\twithout_trade_code")
+    for row in rows:
+        print(
+            f"{row['category_of_work']}\t{row['review_status']}\t"
+            f"{row['row_count']}\t{row['without_trade_code']}"
+        )
+
+
+def list_source_categories() -> None:
+    sql = """
+        SELECT
+            COALESCE(pwc.description, '(blank)') AS category_of_work,
+            COUNT(DISTINCT la.id) AS contract_count,
+            COUNT(lai.id) AS bq_item_count
+        FROM max_purchasing.letter_awards la
+        JOIN max_purchasing.tenders t ON t.id = la.tender_id
+        JOIN max_purchasing.letter_award_tabs lat ON lat.letter_award_id = la.id
+        JOIN max_purchasing.letter_award_items lai ON lai.letter_award_tab_id = lat.id
+        LEFT JOIN max_project.project_work_categories pwc
+            ON pwc.id = COALESCE(la.project_work_category_id, t.project_work_category_id)
+        WHERE t.status = 9
+          AND la.status NOT IN (4, 5)
+          AND COALESCE(lai.is_deleted, 0) = 0
+          AND COALESCE(lai.is_include, 1) = 1
+          AND COALESCE(lai.by_others, 0) = 0
+        GROUP BY COALESCE(pwc.description, '(blank)')
+        ORDER BY bq_item_count DESC, category_of_work
+    """
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+
+    if not rows:
+        print("No awarded Contract BQ source rows found.")
+        return
+
+    print("category_of_work\tcontract_count\tbq_item_count")
+    for row in rows:
+        print(f"{row['category_of_work']}\t{row['contract_count']}\t{row['bq_item_count']}")
+
+
+def source_category_filter_sql(category_of_work: str) -> tuple[str, List[Any]]:
+    if is_infrastructure_category(category_of_work):
+        return "AND LOWER(COALESCE(pwc.description, '')) LIKE %s", ["%infrastructure%"]
+    if "piling" in category_of_work.lower():
+        return "AND LOWER(COALESCE(pwc.description, '')) LIKE %s", ["%piling%"]
+    return "AND pwc.description = %s", [category_of_work]
+
+
+def load_source_category(category_of_work: str, company_id: int, limit: int, dry_run: bool) -> None:
+    category_filter, category_params = source_category_filter_sql(category_of_work)
+    prompt_version = prompt_version_for_category(category_of_work)
+
+    count_sql = f"""
+        SELECT COUNT(*) AS row_count
+        FROM max_purchasing.letter_awards la
+        JOIN max_purchasing.tenders t ON t.id = la.tender_id
+        JOIN max_project.projects p ON p.id = la.project_id
+        JOIN max_purchasing.letter_award_tabs lat ON lat.letter_award_id = la.id
+        JOIN max_purchasing.letter_award_items lai ON lai.letter_award_tab_id = lat.id
+        LEFT JOIN max_project.project_work_categories pwc
+            ON pwc.id = COALESCE(la.project_work_category_id, t.project_work_category_id)
+        WHERE la.company_id = %s
+          AND t.status = 9
+          AND la.status NOT IN (4, 5)
+          AND COALESCE(lai.is_deleted, 0) = 0
+          AND COALESCE(lai.is_include, 1) = 1
+          AND COALESCE(lai.by_others, 0) = 0
+          AND COALESCE(NULLIF(lai.tender_rate, 0), NULLIF(COALESCE(lai.material_rate, 0) + COALESCE(lai.service_rate, 0), 0), 0) > 0
+          {category_filter}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM max_purchasing.ai_bq_trade_code_suggestions existing
+              WHERE existing.bq_item_id = lai.id
+          )
+    """
+
+    insert_sql = f"""
+        INSERT INTO max_purchasing.ai_bq_trade_code_suggestions (
+            letter_award_id,
+            contract_no,
+            business_unit,
+            project_name,
+            project_shortname,
+            awarded_date,
+            contractor_name,
+            category_of_work,
+            letter_award_tab_id,
+            tab_name,
+            bq_item_id,
+            item_ref_no,
+            bq_item_no,
+            parent_header_3,
+            parent_header_2,
+            parent_header_1,
+            bq_item_description,
+            full_bq_description,
+            uom_code,
+            quantity,
+            unit_rate,
+            tender_amount,
+            ai_matching_text,
+            review_status,
+            prompt_version
+        )
+        SELECT
+            la.id AS letter_award_id,
+            COALESCE(la.custom_letter_award_no, la.letter_award_no) AS contract_no,
+            ch.description AS business_unit,
+            p.project_name,
+            NULL AS project_shortname,
+            la.letter_award_date AS awarded_date,
+            COALESCE(vendor.company_name, '-') AS contractor_name,
+            pwc.description AS category_of_work,
+            lat.id AS letter_award_tab_id,
+            lat.content AS tab_name,
+            lai.id AS bq_item_id,
+            lai.id AS item_ref_no,
+            lai.item AS bq_item_no,
+            h3.content AS parent_header_3,
+            h2.content AS parent_header_2,
+            h1.content AS parent_header_1,
+            lai.content AS bq_item_description,
+            CONCAT_WS(' > ', lat.content, h3.content, h2.content, h1.content, lai.content) AS full_bq_description,
+            cu.uom_code,
+            lai.order_qty AS quantity,
+            COALESCE(NULLIF(lai.tender_rate, 0), NULLIF(COALESCE(lai.material_rate, 0) + COALESCE(lai.service_rate, 0), 0)) AS unit_rate,
+            COALESCE(lai.tender_amount, COALESCE(lai.material_amount, 0) + COALESCE(lai.service_amount, 0)) AS tender_amount,
+            CONCAT_WS(' > ', lat.content, h3.content, h2.content, h1.content, lai.content) AS ai_matching_text,
+            'pending' AS review_status,
+            %s AS prompt_version
+        FROM max_purchasing.letter_awards la
+        JOIN max_purchasing.tenders t ON t.id = la.tender_id
+        JOIN max_project.projects p ON p.id = la.project_id
+        LEFT JOIN max_base.company_profiles vendor ON vendor.id = la.vendor_id
+        LEFT JOIN max_base.company_hierarchies ch ON ch.id = p.company_hierarchy_id
+        LEFT JOIN max_project.project_work_categories pwc
+            ON pwc.id = COALESCE(la.project_work_category_id, t.project_work_category_id)
+        JOIN max_purchasing.letter_award_tabs lat ON lat.letter_award_id = la.id
+        JOIN max_purchasing.letter_award_items lai ON lai.letter_award_tab_id = lat.id
+        LEFT JOIN max_purchasing.letter_award_items h1 ON h1.id = lai.parent_id
+        LEFT JOIN max_purchasing.letter_award_items h2 ON h2.id = h1.parent_id
+        LEFT JOIN max_purchasing.letter_award_items h3 ON h3.id = h2.parent_id
+        LEFT JOIN max_base.config_uom cu ON cu.id = lai.uom_id
+        WHERE la.company_id = %s
+          AND t.status = 9
+          AND la.status NOT IN (4, 5)
+          AND COALESCE(lai.is_deleted, 0) = 0
+          AND COALESCE(lai.is_include, 1) = 1
+          AND COALESCE(lai.by_others, 0) = 0
+          AND COALESCE(NULLIF(lai.tender_rate, 0), NULLIF(COALESCE(lai.material_rate, 0) + COALESCE(lai.service_rate, 0), 0), 0) > 0
+          {category_filter}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM max_purchasing.ai_bq_trade_code_suggestions existing
+              WHERE existing.bq_item_id = lai.id
+          )
+        ORDER BY la.letter_award_date DESC, la.id DESC, lat.seq, lai.parent_id, lai.seq
+        LIMIT %s
+    """
+
+    count_params = [company_id, *category_params]
+    insert_params = [prompt_version, company_id, *category_params, limit]
+    started_at = time.perf_counter()
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(count_sql, count_params)
+            available = (cursor.fetchone() or {}).get("row_count", 0)
+            if dry_run:
+                print(
+                    f"Would load up to {min(int(available or 0), limit)} of {available} source rows "
+                    f"for category={category_of_work!r}, company_id={company_id}."
+                )
+                return
+
+            cursor.execute(insert_sql, insert_params)
+            inserted = cursor.rowcount
+
+    log(
+        "source_category_loaded",
+        category_of_work=category_of_work,
+        company_id=company_id,
+        available=available,
+        inserted=inserted,
+        prompt_version=prompt_version,
+        elapsed_seconds=elapsed(started_at),
+    )
+
+
 def suggest_trade_codes(provider: str, model: str, rows: List[Dict[str, Any]], prompt_version: str) -> List[Dict[str, Any]]:
+    category_of_work = first_category(rows)
+    resolved_prompt_version = prompt_version or prompt_version_for_category(category_of_work)
     if provider == "mock":
         return [mock_suggestion(row) for row in rows]
 
     payload = {
-        "prompt_version": prompt_version,
+        "prompt_version": resolved_prompt_version,
+        "category_of_work": category_of_work,
         "items": [serialize_row(row) for row in rows],
     }
     user_prompt = "Classify these BQ items:\n" + json.dumps(payload, ensure_ascii=False, indent=2)
 
     if provider == "openai":
-        return ask_openai(model, user_prompt)
+        return ask_openai(model, user_prompt, resolved_prompt_version, category_of_work)
     if provider == "claude":
-        return ask_claude(model, user_prompt)
+        return ask_claude(model, user_prompt, resolved_prompt_version, category_of_work)
     raise ValueError(f"Unsupported provider: {provider}")
 
 
-def ask_openai(model: str, user_prompt: str) -> List[Dict[str, Any]]:
+def first_category(rows: List[Dict[str, Any]]) -> str:
+    for row in rows:
+        category = str(row.get("category_of_work") or "").strip()
+        if category:
+            return category
+    return ""
+
+
+def ask_openai(model: str, user_prompt: str, prompt_version: str, category_of_work: str | None) -> List[Dict[str, Any]]:
     from openai import OpenAI
 
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     request = {
         "model": model,
         "messages": [
-            {"role": "system", "content": active_system_prompt()},
+            {"role": "system", "content": active_system_prompt(prompt_version, category_of_work)},
             {"role": "user", "content": user_prompt},
         ],
         "temperature": 0.1,
@@ -397,7 +758,7 @@ def ask_openai(model: str, user_prompt: str) -> List[Dict[str, Any]]:
     return parse_json_array(response.choices[0].message.content or "")
 
 
-def ask_claude(model: str, user_prompt: str) -> List[Dict[str, Any]]:
+def ask_claude(model: str, user_prompt: str, prompt_version: str, category_of_work: str | None) -> List[Dict[str, Any]]:
     from anthropic import Anthropic
 
     client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -405,7 +766,7 @@ def ask_claude(model: str, user_prompt: str) -> List[Dict[str, Any]]:
         model=model,
         max_tokens=4000,
         temperature=0.1,
-        system=active_system_prompt(),
+        system=active_system_prompt(prompt_version, category_of_work),
         messages=[{"role": "user", "content": user_prompt}],
     )
     content = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
@@ -463,6 +824,9 @@ def first_present(data: Dict[str, Any], keys: List[str]) -> Any:
 
 
 def apply_canonical_overrides(row: Dict[str, Any], suggestion: Dict[str, Any]) -> Dict[str, Any]:
+    if is_infrastructure_category(row.get("category_of_work")):
+        return apply_infrastructure_overrides(row, suggestion)
+
     text = source_text(row)
     size = detect_pile_size(text)
     pile_type = detect_pile_type(text)
@@ -612,6 +976,154 @@ def apply_canonical_overrides(row: Dict[str, Any], suggestion: Dict[str, Any]) -
         }
 
     return suggestion
+
+
+def apply_infrastructure_overrides(row: Dict[str, Any], suggestion: Dict[str, Any]) -> Dict[str, Any]:
+    text = source_text(row)
+    system = detect_infra_system(text)
+    asset = detect_infra_asset(text, system)
+    activity = detect_infra_activity(text)
+    code = f"INF-{system}-{asset}-{activity}"
+    trade_name = infra_trade_name(system, asset, activity)
+
+    return {
+        **suggestion,
+        "suggested_trade_code": code,
+        "suggested_trade_name": trade_name,
+        "spec_key": f"{system}-{asset}-{activity}",
+        "confidence": max(safe_confidence(suggestion.get("confidence")) or 0, 0.85),
+        "reasoning": "Canonical override: Infrastructure Works keyword classification by system, asset, and activity.",
+    }
+
+
+def detect_infra_system(text: str) -> str:
+    if any(word in text for word in ["street light", "streetlight", "lamp pole", "lighting pole", "feeder pillar"]):
+        return "LIGHT"
+    if any(word in text for word in ["telecom", "telco", "fibre", "fiber", "communication duct"]):
+        return "TELCO"
+    if any(word in text for word in ["tnb", "electrical", "electric", "cable trench", "cable duct", "duct bank"]):
+        return "ELEC"
+    if any(word in text for word in ["water main", "water reticulation", "hdpe", "mscl", "di pipe", "sluice valve", "hydrant"]):
+        return "WATER"
+    if any(word in text for word in ["sewer", "sewerage", "manhole", "inspection chamber", "septic"]):
+        return "SEWER"
+    if any(word in text for word in ["drain", "culvert", "catchpit", "catch pit", "sump", "swale", "u-drain", "v-drain"]):
+        return "DRAIN"
+    if any(word in text for word in ["road", "pavement", "asphalt", "premix", "wearing course", "binder course", "crusher run", "roadbase", "kerb", "road marking"]):
+        return "ROAD"
+    if any(word in text for word in ["turfing", "planting", "landscape", "hydroseeding", "grass"]):
+        return "LAND"
+    if any(word in text for word in ["retaining wall", "headwall", "box culvert", "bridge", "rc wall"]):
+        return "STRUCT"
+    if any(word in text for word in ["earthwork", "excavat", "cut ", " fill", "backfill", "compaction", "dispose", "clearing", "grubbing"]):
+        return "EW"
+    return "GEN"
+
+
+def detect_infra_asset(text: str, system: str) -> str:
+    pipe_size = detect_pipe_size(text)
+    drain_size = detect_infra_dimension(text)
+
+    if "manhole" in text:
+        return "MANHOLE"
+    if "inspection chamber" in text:
+        return "CHAMBER"
+    if "catchpit" in text or "catch pit" in text:
+        return "CATCHPIT"
+    if "culvert" in text:
+        return f"CULVERT-{drain_size}" if drain_size else "CULVERT"
+    if "u-drain" in text or "u drain" in text or "rc drain" in text or "precast drain" in text:
+        return f"RC-DRAIN-{drain_size}" if drain_size else "RC-DRAIN"
+    if "trench" in text:
+        return "TRENCH"
+    if "pipe" in text or system in ["WATER", "SEWER"]:
+        return f"PIPE-{pipe_size}" if pipe_size else "PIPE-GEN"
+    if any(word in text for word in ["asphalt", "premix", "wearing course", "binder course"]):
+        return "ASPHALT"
+    if "crusher run" in text or "roadbase" in text or "road base" in text or "sub-base" in text:
+        return "ROADBASE"
+    if "kerb" in text:
+        return "KERB"
+    if "road marking" in text or "line marking" in text:
+        return "MARKING"
+    if "hydrant" in text:
+        return "HYDRANT"
+    if "valve" in text:
+        return "VALVE"
+    if "pole" in text:
+        return "POLE"
+    if "duct" in text:
+        return "DUCT"
+    if "cable" in text:
+        return "CABLE"
+    return "GEN"
+
+
+def detect_pipe_size(text: str) -> str | None:
+    match = re.search(r"(\d{2,4})\s*mm", text)
+    if match:
+        return f"{match.group(1)}MM"
+    return None
+
+
+def detect_infra_dimension(text: str) -> str | None:
+    square_match = re.search(r"(\d{2,4})\s*mm?\s*x\s*(\d{2,4})\s*mm?", text)
+    if square_match:
+        return f"{square_match.group(1)}X{square_match.group(2)}"
+    return detect_pipe_size(text)
+
+
+def detect_infra_activity(text: str) -> str:
+    if any(word in text for word in ["survey", "setting out", "as-built", "as built"]):
+        return "SURVEY"
+    if any(word in text for word in ["mobilisation", "mobilization", "demobilisation", "demobilization"]):
+        return "MOB"
+    if any(word in text for word in ["clearing", "grubbing", "clear site"]):
+        return "CLEAR"
+    if any(word in text for word in ["excavat", "trench"]):
+        return "EXCAVATE"
+    if any(word in text for word in ["backfill", "filling", " fill"]):
+        return "FILL"
+    if any(word in text for word in ["compact", "compaction"]):
+        return "COMPACT"
+    if any(word in text for word in ["cart away", "dispose", "disposal", "remove surplus"]):
+        return "DISPOSE"
+    if any(word in text for word in ["pressure test", "water test", "testing", "test "]):
+        return "TEST"
+    if any(word in text for word in ["connect", "connection", "tie-in", "tie in"]):
+        return "CONNECT"
+    if any(word in text for word in ["reinstate", "reinstatement", "make good"]):
+        return "REINSTATE"
+    if any(word in text for word in ["protect", "protection", "temporary support"]):
+        return "PROTECT"
+    if any(word in text for word in ["road marking", "line marking"]):
+        return "MARKING"
+    if any(word in text for word in ["supply and lay", "supply & lay", "lay ", "laying"]):
+        return "LAY"
+    if any(word in text for word in ["install", "installation", "fixing", "erect"]):
+        return "INSTALL"
+    if any(word in text for word in ["construct", "construction", "cast in-situ", "cast in situ", "build"]):
+        return "CONSTRUCT"
+    if any(word in text for word in ["supply", "provide"]):
+        return "SUPPLY"
+    return "OTHER"
+
+
+def infra_trade_name(system: str, asset: str, activity: str) -> str:
+    system_names = {
+        "GEN": "General infrastructure",
+        "EW": "Earthwork",
+        "ROAD": "Roadwork",
+        "DRAIN": "Drainage",
+        "SEWER": "Sewerage",
+        "WATER": "Water reticulation",
+        "ELEC": "Electrical infrastructure",
+        "TELCO": "Telecommunication infrastructure",
+        "LIGHT": "Street lighting",
+        "LAND": "Landscape infrastructure",
+        "STRUCT": "Infrastructure structure",
+    }
+    return f"{activity.replace('-', ' ').title()} {asset.replace('-', ' ').title()} ({system_names.get(system, system)})"
 
 
 def source_text(row: Dict[str, Any]) -> str:
@@ -938,6 +1450,7 @@ def serialize_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "id",
         "contract_no",
         "business_unit",
+        "category_of_work",
         "project_shortname",
         "tab_name",
         "item_ref_no",
@@ -994,6 +1507,19 @@ def safe_confidence(value: Any) -> float | None:
 
 
 def mock_suggestion(row: Dict[str, Any]) -> Dict[str, Any]:
+    if is_infrastructure_category(row.get("category_of_work")):
+        return apply_infrastructure_overrides(
+            row,
+            {
+                "id": row["id"],
+                "suggested_trade_code": "",
+                "suggested_trade_name": "",
+                "spec_key": "",
+                "confidence": 0.5,
+                "reasoning": "Mock infrastructure classification based on keywords.",
+            },
+        )
+
     text = " ".join(
         str(row.get(key) or "")
         for key in ["full_bq_description", "bq_item_description", "ai_matching_text", "uom_code"]

@@ -79,6 +79,21 @@ Use OpenAI:
 .\.venv\Scripts\python.exe trade_code_worker.py --provider openai --limit 50 --batch-size 10
 ```
 
+Use OpenAI for Infrastructure Works:
+
+```powershell
+.\.venv\Scripts\python.exe trade_code_worker.py --category-of-work "Infrastructure Works" --provider openai --limit 50 --batch-size 10
+```
+
+If Infrastructure rows are not in `ai_bq_trade_code_suggestions` yet, load them from awarded Contract BQ source tables first:
+
+```powershell
+.\.venv\Scripts\python.exe trade_code_worker.py --list-source-categories
+.\.venv\Scripts\python.exe trade_code_worker.py --load-source-category "Infrastructure Works" --limit 50 --dry-run
+.\.venv\Scripts\python.exe trade_code_worker.py --load-source-category "Infrastructure Works" --limit 50
+.\.venv\Scripts\python.exe trade_code_worker.py --category-of-work "Infrastructure Works" --provider openai --limit 50 --batch-size 10
+```
+
 Use Claude:
 
 ```powershell
@@ -291,3 +306,7 @@ Preview before writing:
 $env:TRADE_CODE_PROMPT_RULES_FILE = "prompt_tuning_rules.txt"
 .\.venv\Scripts\python.exe trade_code_worker.py --provider openai --include-processed --history-only --limit 100 --batch-size 10 --prompt-version piling-v3 --run-id openai-piling-v3-history
 ```
+
+Manual Infrastructure source preview:
+
+If your `max_project.projects` table does not have `project_shortname`, use `NULL AS project_shortname` in preview queries.
